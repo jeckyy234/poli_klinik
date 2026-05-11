@@ -1,0 +1,388 @@
+{% load static %}
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Klinik Aqua - Sistem Antrian Poli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <meta name="csrf-token" content="{{ csrf_token }}" />
+    <style>
+      .transition-smooth {
+        transition: all 0.2s ease;
+      }
+      .btn-primary {
+        background-color: #0d9488;
+      }
+      .btn-primary:hover {
+        background-color: #0f766e;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 font-sans">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b pb-4 mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-teal-700">Klinik Aqua</h1>
+          <p class="text-teal-500">Sistem Antrian & Rekam Medis Digital</p>
+        </div>
+        <i class="fas fa-water text-teal-500 text-3xl"></i>
+      </div>
+
+      <!-- Dashboard Poli -->
+      <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-3">Dashboard Pelayanan</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="serviceCards">
+          {% for poli in polis %}
+          <div
+            class="p-4 rounded-2xl shadow cursor-pointer bg-white hover:shadow-lg transition"
+            data-poli="{{ poli.kode }}"
+          >
+            <i class="fas fa-stethoscope text-teal-600 text-2xl mb-2"></i>
+            <h3 class="font-bold">{{ poli.nama }}</h3>
+            <p class="text-xs text-gray-500">Klik untuk pilih</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <!-- KIRI: Form & Riwayat -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Form Pendaftaran -->
+          <div class="bg-white rounded-2xl shadow p-6">
+            <h2 class="text-xl font-bold text-teal-800 mb-4">
+               Pendaftaran Antrian Baru
+            </h2>
+            <div class="space-y-3">
+              <select id="poliSelect" class="w-full border p-2 rounded-lg">
+                <option value="">-- Pilih Poli --</option>
+                {% for poli in polis %}
+                <option value="{{ poli.kode }}">{{ poli.nama }}</option>
+                {% endfor %}
+              </select>
+              <input
+                type="text"
+                id="nik"
+                placeholder="NIK"
+                class="w-full border p-2 rounded-lg"
+              />
+              <input
+                type="text"
+                id="nama"
+                placeholder="Nama Lengkap"
+                class="w-full border p-2 rounded-lg"
+              />
+              <input
+                type="email"
+                id="email"
+                placeholder="Email"
+                class="w-full border p-2 rounded-lg"
+              />
+              <input
+                type="tel"
+                id="telp"
+                placeholder="Telepon (opsional)"
+                class="w-full border p-2 rounded-lg"
+              />
+              <button
+                id="btnDaftar"
+                class="btn-primary text-white py-2 px-4 rounded-xl w-full"
+              >
+                Ambil Antrian
+              </button>
+              <div
+                id="hasilAntrian"
+                class="text-center text-sm text-teal-600"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Riwayat Pemeriksaan -->
+          <div class="bg-white rounded-2xl shadow p-6">
+            <h2 class="text-xl font-bold text-gray-700 mb-3">
+               Riwayat Pemeriksaan
+            </h2>
+            <div class="flex gap-2 mb-3">
+              <input
+                type="text"
+                id="cariNik"
+                placeholder="Masukkan NIK"
+                class="flex-1 border p-2 rounded-lg"
+              />
+              <button id="btnCari" class="bg-teal-100 px-4 rounded-lg">
+                Cari
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Poli</th>
+                    <th>Diagnosa</th>
+                    <th>Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody id="riwayatBody">
+                  <tr>
+                    <td colspan="4" class="text-center py-4 text-gray-400">
+                      Masukkan NIK untuk melihat riwayat
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- KANAN: Panel Antrian Operator -->
+        <div class="bg-white rounded-2xl shadow p-6 sticky top-4">
+          <h2 class="text-xl font-bold text-teal-800 mb-4">
+             Manajemen Antrian
+          </h2>
+          <select id="operatorPoli" class="w-full border p-2 rounded-lg mb-4">
+            {% for poli in polis %}
+            <option value="{{ poli.kode }}">{{ poli.nama }}</option>
+            {% endfor %}
+          </select>
+          <div class="bg-teal-50 text-center p-4 rounded-xl mb-4">
+            <p class="text-gray-500 text-sm">Sedang Dilayani</p>
+            <div
+              id="currentNumber"
+              class="text-3xl font-mono font-bold text-teal-700"
+            >
+              —
+            </div>
+            <div id="currentName" class="text-sm text-gray-600"></div>
+          </div>
+          <div class="flex gap-2 mb-3">
+            <button id="btnPrev" class="flex-1 bg-gray-200 py-2 rounded-lg">
+               Sebelumnya
+            </button>
+            <button
+              id="btnNext"
+              class="flex-1 bg-teal-600 text-white py-2 rounded-lg"
+            >
+              Berikutnya 
+            </button>
+          </div>
+          <button
+            id="btnComplete"
+            class="w-full bg-green-600 text-white py-2 rounded-lg mb-4"
+          >
+             Selesai & Tambah Riwayat
+          </button>
+          <div>
+            <p class="font-semibold text-gray-600 mb-2">Antrian Menunggu</p>
+            <div
+              id="waitingList"
+              class="max-h-56 overflow-auto bg-gray-50 rounded p-2 text-sm"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Helper: CSRF token
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(
+                cookie.substring(name.length + 1),
+              );
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+      const csrftoken = getCookie("csrftoken");
+
+      let currentPoli =
+        document.getElementById("operatorPoli")?.value || "umum";
+      let currentAntrianId = null;
+      let waitingData = [];
+
+      // Fungsi refresh panel operator
+      async function refreshOperator() {
+        const poliKode = document.getElementById("operatorPoli").value;
+        currentPoli = poliKode;
+        // Ambil daftar waiting
+        const respList = await fetch(`/api/antrian/${poliKode}/`);
+        const list = await respList.json();
+        waitingData = list;
+        const waitingDiv = document.getElementById("waitingList");
+        if (list.length === 0) {
+          waitingDiv.innerHTML =
+            '<div class="text-center text-gray-400 py-2">Tidak ada antrian</div>';
+        } else {
+          waitingDiv.innerHTML =
+            '<ul class="divide-y">' +
+            list
+              .map(
+                (q) =>
+                  `<li class="py-1 ${currentAntrianId === q.id ? "bg-teal-100 font-bold" : ""}">${q.nomor} - ${q.nama}</li>`,
+              )
+              .join("") +
+            "</ul>";
+        }
+        // Ambil current antrian (pertama dalam waiting)
+        if (list.length > 0 && !currentAntrianId) {
+          currentAntrianId = list[0].id;
+          document.getElementById("currentNumber").innerText = list[0].nomor;
+          document.getElementById("currentName").innerText = list[0].nama;
+        } else if (list.length === 0) {
+          currentAntrianId = null;
+          document.getElementById("currentNumber").innerText = "—";
+          document.getElementById("currentName").innerText = "";
+        } else if (
+          currentAntrianId &&
+          !list.find((q) => q.id === currentAntrianId)
+        ) {
+          // jika antrian saat ini sudah selesai, pilih pertama
+          currentAntrianId = list[0].id;
+          document.getElementById("currentNumber").innerText = list[0].nomor;
+          document.getElementById("currentName").innerText = list[0].nama;
+        }
+      }
+
+      // Fungsi update status (next/prev/complete)
+      async function updateQueue(action, extraData = {}) {
+        const data = {
+          poli_kode: currentPoli,
+          action: action,
+          current_id: currentAntrianId,
+          ...extraData,
+        };
+        const resp = await fetch("/api/update/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrftoken,
+          },
+          body: JSON.stringify(data),
+        });
+        const result = await resp.json();
+        if (result.success) {
+          if (result.selected) {
+            currentAntrianId = result.selected.id;
+            document.getElementById("currentNumber").innerText =
+              result.selected.nomor;
+            document.getElementById("currentName").innerText =
+              result.selected.nama;
+          } else {
+            currentAntrianId = null;
+            document.getElementById("currentNumber").innerText = "—";
+            document.getElementById("currentName").innerText = "";
+          }
+          refreshOperator();
+        } else {
+          alert(result.msg || "Gagal");
+        }
+      }
+
+      // Event tombol
+      document
+        .getElementById("btnNext")
+        ?.addEventListener("click", () => updateQueue("next"));
+      document
+        .getElementById("btnPrev")
+        ?.addEventListener("click", () => updateQueue("prev"));
+      document
+        .getElementById("btnComplete")
+        ?.addEventListener("click", () =>
+          updateQueue("complete", { antrian_id: currentAntrianId }),
+        );
+      document
+        .getElementById("operatorPoli")
+        ?.addEventListener("change", () => {
+          currentAntrianId = null;
+          refreshOperator();
+        });
+
+      // Daftar antrian baru
+      document
+        .getElementById("btnDaftar")
+        ?.addEventListener("click", async () => {
+          const poli_kode = document.getElementById("poliSelect").value;
+          const nik = document.getElementById("nik").value;
+          const nama = document.getElementById("nama").value;
+          const email = document.getElementById("email").value;
+          const telepon = document.getElementById("telp").value;
+          if (!poli_kode || !nik || !nama || !email) {
+            alert("Lengkapi poli, NIK, nama, email");
+            return;
+          }
+          const resp = await fetch("/api/daftar/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrftoken,
+            },
+            body: JSON.stringify({ poli_kode, nik, nama, email, telepon }),
+          });
+          const data = await resp.json();
+          if (data.success) {
+            document.getElementById("hasilAntrian").innerText =
+              `  Nomor antrian: ${data.queueNumber}`;
+            document.getElementById("nik").value = "";
+            document.getElementById("nama").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("telp").value = "";
+            refreshOperator();
+            setTimeout(
+              () => (document.getElementById("hasilAntrian").innerText = ""),
+              3000,
+            );
+          } else {
+            alert(data.msg);
+          }
+        });
+
+      // Cari riwayat
+      document
+        .getElementById("btnCari")
+        ?.addEventListener("click", async () => {
+          const nik = document.getElementById("cariNik").value;
+          if (!nik) return;
+          const resp = await fetch(`/api/riwayat/${nik}/`);
+          const records = await resp.json();
+          const tbody = document.getElementById("riwayatBody");
+          if (records.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="4" class="text-center py-4 text-gray-400">Tidak ada riwayat</td></tr>';
+          } else {
+            tbody.innerHTML = records
+              .map(
+                (r) =>
+                  `<tr><td class="px-2 py-1">${r.tanggal}</td><td class="px-2 py-1">${r.poli}</td><td class="px-2 py-1">${r.diagnosa}</td><td class="px-2 py-1">${r.tindakan}</td></tr>`,
+              )
+              .join("");
+          }
+        });
+
+      // Dashboard cards memilih poli
+      document.querySelectorAll("#serviceCards > div").forEach((card) => {
+        card.addEventListener("click", () => {
+          const poliVal = card.getAttribute("data-poli");
+          document.getElementById("poliSelect").value = poliVal;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+
+      refreshOperator();
+      setInterval(refreshOperator, 5000); // refresh setiap 5 detik
+    </script>
+  </body>
+</html>
