@@ -12,5 +12,7 @@
       "src": "/(.*)",
       "dest": "myproject/wsgi.py"
     }
-  ]
+  ],
+  "installCommand": "pip install -r requirements.txt",
+  "buildCommand": "python manage.py migrate && python manage.py seed_db"
 }
