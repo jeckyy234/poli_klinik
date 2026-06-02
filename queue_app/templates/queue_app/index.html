@@ -1,388 +1,1428 @@
-{% load static %}
-<!doctype html>
-<html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Klinik Aqua - Sistem Antrian Poli</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
-    />
-    <meta name="csrf-token" content="{{ csrf_token }}" />
-    <style>
-      .transition-smooth {
+{% extends 'queue_app/base.html' %}
+{% block title %}Pendaftaran Antrean — Klinik Aqua{% endblock %}
+{% block extra_css %}
+<style>
+    .poli-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-2);
+            margin-bottom: var(--space-3);
+            width: 100%;
+            max-width: 100%;
+        }
+    .poli-card {
+        border: 2px solid var(--color-text-tertiary);
+        border-radius: 12px;
+        padding: var(--space-3);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .poli-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--color-text-secondary);
+    }
+    .poli-card.selected {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99,102,241,0.25);
+        border-color: var(--color-accent);
+        background: rgba(99,102,241,0.05);
+    }
+    .poli-card[data-kode="umum"] {
+        background: rgba(99,102,241,0.08);
+        border-color: #6366f1;
+    }
+    .poli-card[data-kode="umum"].selected {
+        background: rgba(99,102,241,0.15);
+    }
+    .poli-card[data-kode="gigi"] {
+        background: rgba(139,92,246,0.08);
+        border-color: #8b5cf6;
+    }
+    .poli-card[data-kode="gigi"].selected {
+        background: rgba(139,92,246,0.15);
+    }
+    .poli-card[data-kode="mata"] {
+        background: rgba(236,72,153,0.08);
+        border-color: #ec4899;
+    }
+    .poli-card[data-kode="mata"].selected {
+        background: rgba(236,72,153,0.15);
+    }
+    .poli-card[data-kode="anak"] {
+        background: rgba(245,158,11,0.08);
+        border-color: #f59e0b;
+    }
+    .poli-card[data-kode="anak"].selected {
+        background: rgba(245,158,11,0.15);
+    }
+    .poli-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--color-surface);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-bottom: var(--space-2);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .poli-name {
+        font-size: var(--font-base);
+        font-weight: var(--font-extrabold);
+        margin-bottom: var(--space-1);
+        color: var(--color-text-primary);
+    }
+    .poli-meta {
+        font-size: var(--font-xs);
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--color-text-tertiary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--space-1);
+        flex-wrap: wrap;
+    }
+    .poli-status {
+        font-size: var(--font-xs);
+        font-weight: var(--font-semibold);
+        padding: var(--space-1) var(--space-1);
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 6px;
+        color: #16a34a;
+        line-height: var(--line-snug);
+        white-space: nowrap;
+    }
+    .content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+        gap: var(--space-4);
+        width: 100%;
+        max-width: 100%;
+    }
+    .ticket-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 16px;
+        padding: var(--space-3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .ticket-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: var(--space-2);
+        gap: var(--space-2);
+        flex-wrap: wrap;
+    }
+    .ticket-title {
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-wider);
+        color: var(--color-text-secondary);
+    }
+    .ticket-status {
+        font-size: var(--font-xs);
+        font-weight: var(--font-semibold);
+        color: #ef4444;
+        border: 1px solid #fecaca;
+        padding: var(--space-1) var(--space-2);
+        border-radius: 6px;
+        background: #fef2f2;
+        line-height: var(--line-snug);
+        white-space: nowrap;
+    }
+    .ticket-display {
+        background: var(--color-text-primary);
+        border-radius: 10px;
+        padding: var(--space-3);
+        text-align: center;
+        margin-bottom: var(--space-3);
+    }
+    .ticket-label {
+        font-size: var(--font-xs);
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-widest);
+        font-weight: var(--font-bold);
+        margin-bottom: var(--space-1);
+        line-height: var(--line-snug);
+    }
+    .ticket-number {
+        font-size: var(--font-2xl);
+        font-weight: var(--font-extrabold);
+        color: #a5b4fc;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: var(--letter-tighter);
+        line-height: var(--line-tight);
+    }
+    .ticket-poli {
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        color: white;
+        margin-top: var(--space-1);
+        line-height: var(--line-snug);
+    }
+    .ticket-form-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+    }
+    .ticket-form-group.full {
+        grid-template-columns: 1fr;
+    }
+    .input-wrap label {
+        display: block;
+        font-size: var(--font-xs);
+        font-weight: var(--font-bold);
+        color: var(--color-text-secondary);
+        margin-bottom: var(--space-1);
+        letter-spacing: var(--letter-wide);
+    }
+    .input-wrap input,
+    .input-wrap select {
+        width: 100%;
+        padding: var(--space-2) var(--space-3);
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: var(--font-sm);
+        font-weight: var(--font-semibold);
+        background: var(--color-surface);
+        color: var(--color-text-primary);
+        outline: none;
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        line-height: var(--line-snug);
+    }
+    .input-wrap input:focus,
+    .input-wrap select:focus {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+        outline: none;
+    }
+    .input-wrap input:not(:placeholder-shown):valid {
+        border-color: #10b981;
+    }
+    .input-wrap input::placeholder {
+        color: var(--color-text-muted);
+    }
+    .btn-submit {
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--color-accent);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: var(--font-sm);
+        font-weight: var(--font-extrabold);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+        line-height: var(--line-snug);
+    }
+    .btn-submit:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+        background: #4f46e5;
+    }
+    .btn-submit:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(99,102,241,0.25);
+    }
+    .btn-submit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none;
+        background: var(--color-text-tertiary);
+    }
+    .queue-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 16px;
+        padding: var(--space-3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .queue-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+    }
+    .queue-item {
+        border: 1.5px solid #e5e7eb;
+        border-radius: 8px;
+        padding: var(--space-1) var(--space-2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f9fafb;
+        transition: background-color 0.15s ease;
+    }
+    .queue-item.called {
+        background: rgba(52, 211, 153, 0.12);
+        border-color: #34d399;
+    }
+    .queue-item.mine-called {
+        box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.35);
+    }
+    .queue-item.mine-waiting {
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+    }
+    .queue-status-label {
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        justify-content: flex-end;
+        line-height: var(--line-snug);
+    }
+    .queue-status-called {
+        color: #059669;
+    }
+    .queue-status-waiting {
+        color: var(--color-text-muted);
+    }
+    .queue-status-idle {
+        color: var(--color-text-muted);
+        font-weight: var(--font-semibold);
+    }
+    .queue-poli {
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-wider);
+        line-height: var(--line-snug);
+    }
+    .queue-number {
+        font-size: var(--font-sm);
+        font-weight: var(--font-extrabold);
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--color-text-primary);
+    }
+    .queue-footer {
+        margin-top: var(--space-2);
+        font-size: var(--font-xs);
+        color: var(--color-text-muted);
+        text-align: center;
+        font-weight: var(--font-semibold);
+        padding-top: var(--space-1);
+        border-top: 1px solid #e5e7eb;
+    }
+    .wait-time-badge {
+        background: #fef9c3;
+        border: 1px solid #fde68a;
+        border-radius: 10px;
+        padding: var(--space-3);
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        margin-top: var(--space-3);
+        color: var(--color-text-primary);
+        line-height: var(--line-snug);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        box-shadow: 0 2px 8px rgba(245,158,11,0.12);
+    }
+    .ticket-hero {
+        background: var(--color-text-primary);
+        border: none;
+        border-radius: 12px;
+        padding: var(--space-3) var(--space-3);
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(17,24,39,0.15);
+        margin-bottom: var(--space-2);
+    }
+    .ticket-number-large {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: var(--font-2xl);
+        font-weight: var(--font-extrabold);
+        color: #a5b4fc;
+        line-height: var(--line-tight);
+        letter-spacing: var(--letter-tight);
+        margin: var(--space-2) 0;
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+    }
+    .info-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 12px;
+        padding: var(--space-2);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .info-card-full {
+        grid-column: 1 / -1;
+    }
+    @keyframes blink-called {
+        0%, 100% { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        50% { border-color: white; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2); }
+    }
+    .called-state { animation: blink-called 1s infinite; }
+    .btn-reset {
+        width: 100%;
+        padding: var(--space-3);
+        background: #fee2e2;
+        color: #ef4444;
+        border: 1px solid #fca5a5;
+        border-radius: 10px;
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        cursor: pointer;
         transition: all 0.2s ease;
-      }
-      .btn-primary {
-        background-color: #0d9488;
-      }
-      .btn-primary:hover {
-        background-color: #0f766e;
-      }
-    </style>
-  </head>
-  <body class="bg-gray-50 font-sans">
-    <div class="max-w-7xl mx-auto px-4 py-6">
-      <!-- Header -->
-      <div class="flex justify-between items-center border-b pb-4 mb-6">
-        <div>
-          <h1 class="text-3xl font-bold text-teal-700">Klinik Aqua</h1>
-          <p class="text-teal-500">Sistem Antrian & Rekam Medis Digital</p>
-        </div>
-        <i class="fas fa-water text-teal-500 text-3xl"></i>
-      </div>
-
-      <!-- Dashboard Poli -->
-      <div class="mb-8">
-        <h2 class="text-xl font-semibold mb-3">Dashboard Pelayanan</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="serviceCards">
-          {% for poli in polis %}
-          <div
-            class="p-4 rounded-2xl shadow cursor-pointer bg-white hover:shadow-lg transition"
-            data-poli="{{ poli.kode }}"
-          >
-            <i class="fas fa-stethoscope text-teal-600 text-2xl mb-2"></i>
-            <h3 class="font-bold">{{ poli.nama }}</h3>
-            <p class="text-xs text-gray-500">Klik untuk pilih</p>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="grid lg:grid-cols-3 gap-6">
-        <!-- KIRI: Form & Riwayat -->
-        <div class="lg:col-span-2 space-y-6">
-          <!-- Form Pendaftaran -->
-          <div class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-xl font-bold text-teal-800 mb-4">
-               Pendaftaran Antrian Baru
-            </h2>
-            <div class="space-y-3">
-              <select id="poliSelect" class="w-full border p-2 rounded-lg">
-                <option value="">-- Pilih Poli --</option>
-                {% for poli in polis %}
-                <option value="{{ poli.kode }}">{{ poli.nama }}</option>
-                {% endfor %}
-              </select>
-              <input
-                type="text"
-                id="nik"
-                placeholder="NIK"
-                class="w-full border p-2 rounded-lg"
-              />
-              <input
-                type="text"
-                id="nama"
-                placeholder="Nama Lengkap"
-                class="w-full border p-2 rounded-lg"
-              />
-              <input
-                type="email"
-                id="email"
-                placeholder="Email"
-                class="w-full border p-2 rounded-lg"
-              />
-              <input
-                type="tel"
-                id="telp"
-                placeholder="Telepon (opsional)"
-                class="w-full border p-2 rounded-lg"
-              />
-              <button
-                id="btnDaftar"
-                class="btn-primary text-white py-2 px-4 rounded-xl w-full"
-              >
-                Ambil Antrian
-              </button>
-              <div
-                id="hasilAntrian"
-                class="text-center text-sm text-teal-600"
-              ></div>
+        box-shadow: 0 2px 8px rgba(239,68,68,0.18);
+        line-height: var(--line-snug);
+    }
+    .btn-reset:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239,68,68,0.25);
+        background: #fecaca;
+    }
+    .btn-reset:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(239,68,68,0.18);
+    }
+    @media (max-width: 1024px) {
+        .poli-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 640px) {
+        .poli-grid {
+            grid-template-columns: 1fr;
+        }
+        .ticket-form-group {
+            grid-template-columns: 1fr;
+        }
+        .ticket-display, .ticket-hero {
+            padding: var(--space-4);
+        }
+        .ticket-number, .ticket-number-large {
+            font-size: var(--font-2xl);
+        }
+        .btn-submit, .btn-reset {
+            padding: var(--space-2);
+            font-size: var(--font-sm);
+        }
+    }
+    .printable-receipt {
+        border: 2px dashed var(--color-text-primary);
+        border-radius: 12px;
+        padding: var(--space-4);
+        background: #faf9f6;
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--color-text-primary);
+    }
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        #exam-modal, #exam-modal * {
+            visibility: visible;
+        }
+        #exam-modal {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            background: white !important;
+            display: block !important;
+            z-index: 99999;
+        }
+        .modal-content {
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .modal-header, .modal-header * {
+            display: none !important;
+        }
+        .printable-receipt {
+            border: none !important;
+            background: white !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+        .btn-submit, button, .modal-header button {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="main-content">
+    <div id="poli-selection-container">
+        <div class="section-title">Pilih Poliklinik Tujuan</div>
+        <div class="poli-grid">
+            {% for data in poli_data %}
+            <div class="poli-card" data-kode="{{ data.poli.kode }}" onclick="selectPoli('{{ data.poli.kode }}', '{{ data.poli.nama }}')">
+                <div class="poli-icon">
+                    {% if data.poli.kode == 'umum' %}
+                    <!-- SVG: Stethoscope -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                    {% elif data.poli.kode == 'gigi' %}
+                    <!-- SVG: Tooth -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.5c-1.5-2-4-2.5-5.5-1C4 6 4 9 5 11c.5 1 1 2 1 4s.5 4 2 4 1.5-2 2-3c.5-1 .5-1 2-1s1.5 0 2 1c.5 1 .5 3 2 3s2-2 2-4 .5-3 1-4c1-2 1-5-1.5-6.5C16 4 13.5 3.5 12 5.5z"/></svg>
+                    {% elif data.poli.kode == 'mata' %}
+                    <!-- SVG: Eye -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    {% else %}
+                    <!-- SVG: Baby/Child -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/></svg>
+                    {% endif %}
+                </div>
+                <div class="poli-name">{{ data.poli.nama }}</div>
+                <div class="poli-meta">
+                    <span id="filled-{{ data.poli.kode }}">0/{{ data.poli.kuota_harian }}</span>
+                    <span class="poli-status" id="status-badge-{{ data.poli.kode }}">BUKA</span>
+                </div>
             </div>
-          </div>
-
-          <!-- Riwayat Pemeriksaan -->
-          <div class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-xl font-bold text-gray-700 mb-3">
-               Riwayat Pemeriksaan
-            </h2>
-            <div class="flex gap-2 mb-3">
-              <input
-                type="text"
-                id="cariNik"
-                placeholder="Masukkan NIK"
-                class="flex-1 border p-2 rounded-lg"
-              />
-              <button id="btnCari" class="bg-teal-100 px-4 rounded-lg">
-                Cari
-              </button>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-gray-100">
-                  <tr>
-                    <th>Tanggal</th>
-                    <th>Poli</th>
-                    <th>Diagnosa</th>
-                    <th>Tindakan</th>
-                  </tr>
-                </thead>
-                <tbody id="riwayatBody">
-                  <tr>
-                    <td colspan="4" class="text-center py-4 text-gray-400">
-                      Masukkan NIK untuk melihat riwayat
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- KANAN: Panel Antrian Operator -->
-        <div class="bg-white rounded-2xl shadow p-6 sticky top-4">
-          <h2 class="text-xl font-bold text-teal-800 mb-4">
-             Manajemen Antrian
-          </h2>
-          <select id="operatorPoli" class="w-full border p-2 rounded-lg mb-4">
-            {% for poli in polis %}
-            <option value="{{ poli.kode }}">{{ poli.nama }}</option>
             {% endfor %}
-          </select>
-          <div class="bg-teal-50 text-center p-4 rounded-xl mb-4">
-            <p class="text-gray-500 text-sm">Sedang Dilayani</p>
-            <div
-              id="currentNumber"
-              class="text-3xl font-mono font-bold text-teal-700"
-            >
-              —
-            </div>
-            <div id="currentName" class="text-sm text-gray-600"></div>
-          </div>
-          <div class="flex gap-2 mb-3">
-            <button id="btnPrev" class="flex-1 bg-gray-200 py-2 rounded-lg">
-               Sebelumnya
-            </button>
-            <button
-              id="btnNext"
-              class="flex-1 bg-teal-600 text-white py-2 rounded-lg"
-            >
-              Berikutnya 
-            </button>
-          </div>
-          <button
-            id="btnComplete"
-            class="w-full bg-green-600 text-white py-2 rounded-lg mb-4"
-          >
-             Selesai & Tambah Riwayat
-          </button>
-          <div>
-            <p class="font-semibold text-gray-600 mb-2">Antrian Menunggu</p>
-            <div
-              id="waitingList"
-              class="max-h-56 overflow-auto bg-gray-50 rounded p-2 text-sm"
-            ></div>
-          </div>
         </div>
-      </div>
     </div>
 
-    <script>
-      // Helper: CSRF token
-      function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== "") {
-          const cookies = document.cookie.split(";");
-          for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === name + "=") {
-              cookieValue = decodeURIComponent(
-                cookie.substring(name.length + 1),
-              );
-              break;
+    <div class="content-grid">
+        <!-- Left: Ticket Form or Ticket View -->
+        <div class="ticket-card">
+            <div class="ticket-header">
+                <div class="ticket-title">Tiket Antrean Aktif</div>
+                <div class="ticket-status" id="ticket-status">Belum Terdaftar</div>
+            </div>
+
+            <!-- Registration Form -->
+            <div id="reg-section">
+                <form onsubmit="handleRegistration(event)" id="reg-form">
+                    <div class="ticket-form-group">
+                        <div class="input-wrap">
+                            <label for="nama">Nama Pasien</label>
+                            <input type="text" id="nama" placeholder="Masukkan nama" required>
+                        </div>
+                        <div class="input-wrap">
+                            <label for="nik">NIK</label>
+                            <input type="text" id="nik" placeholder="16 digit" maxlength="16" required>
+                        </div>
+                    </div>
+                    <div class="ticket-form-group">
+                        <div class="input-wrap">
+                            <label for="telepon">Telepon</label>
+                            <input type="text" id="telepon" placeholder="08xxxxxxxxxx">
+                        </div>
+                        <div class="input-wrap">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" placeholder="email@example.com">
+                        </div>
+                    </div>
+                    <div class="ticket-form-group full">
+                        <div class="input-wrap">
+                            <label for="prioritas">Kategori Pasien</label>
+                            <select id="prioritas">
+                                <option value="0">Normal - Umum / Cek Rutin</option>
+                                <option value="1">Prioritas - Lansia / Ibu Hamil / Balita</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="poli-hint" style="font-size: var(--font-xs); font-weight: var(--font-semibold); color: #dc2626; margin-bottom: var(--space-2); text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: var(--space-1) var(--space-2);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Silakan pilih poliklinik tujuan Anda di atas terlebih dahulu.
+                    </div>
+                    <button type="submit" class="btn-submit" id="submit-btn" disabled>
+                        <!-- SVG: Ticket -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+                        Ambil Nomor Antrean
+                    </button>
+                </form>
+            </div>
+
+            <!-- Ticket View -->
+            <div id="ticket-section" style="display: none;">
+                <div class="ticket-hero" id="ticket-hero">
+                    <div style="color: var(--color-text-muted); font-size: var(--font-xs); font-weight: var(--font-bold); text-transform: uppercase; letter-spacing: var(--letter-widest);">NOMOR ANTREAN ANDA</div>
+                    <div class="ticket-number-large" id="ticket-number">—</div>
+                    <div style="display: flex; justify-content: center;">
+                        <span class="badge" id="badge-status" style="background: white;">Menghubungkan...</span>
+                    </div>
+                </div>
+                
+                <!-- Info Waiting (always show) -->
+                <div class="info-grid" id="waiting-info-grid">
+                    <div class="info-card">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: var(--letter-wider); margin-bottom: var(--space-1);">Nama Pasien</div>
+                        <div style="font-weight: var(--font-extrabold); font-size: var(--font-base);" id="patient-name">—</div>
+                    </div>
+                    <div class="info-card">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: var(--letter-wider); margin-bottom: var(--space-1);">Poliklinik</div>
+                        <div style="font-weight: var(--font-extrabold); font-size: var(--font-base);" id="poli-nama">—</div>
+                    </div>
+                    <div class="info-card" id="count-ahead-card">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: var(--letter-wider); margin-bottom: var(--space-1);">Antrean di Depan</div>
+                        <div style="font-weight: var(--font-extrabold); font-size: var(--font-xl); color: #f59e0b; font-family: 'JetBrains Mono', monospace;" id="count-ahead">—</div>
+                    </div>
+                    <div class="info-card" id="time-estimator-card">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: var(--letter-wider); margin-bottom: var(--space-1);">Estimasi Waktu</div>
+                        <div style="font-weight: var(--font-extrabold); font-size: var(--font-xl); color: #f59e0b; font-family: 'JetBrains Mono', monospace;" id="time-estimator">—</div>
+                        <div style="font-size: var(--font-sm); color: var(--color-text-tertiary);">Menit</div>
+                    </div>
+                </div>
+                
+                <!-- Cancel Queue Button (when waiting) -->
+                <div id="cancel-btn-container" style="margin-top: var(--space-3); display: none;">
+                    <button class="btn-reset" id="cancel-btn" onclick="cancelQueue()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                        Batalkan Antrean
+                    </button>
+                </div>
+
+                <!-- View Exam Result Button (when done) -->
+                <div id="view-exam-btn-container" style="margin-top: var(--space-3); display: none;">
+                    <button class="btn-submit" id="view-exam-btn" onclick="openExamModal()" style="margin-bottom: var(--space-2);">
+                        <!-- SVG: Clipboard -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+                        Lihat Hasil Pemeriksaan
+                    </button>
+                    <button class="btn-submit" id="reset-btn" onclick="resetToNewRegistration()" style="background-color: var(--color-text-tertiary);">
+                        <!-- SVG: Plus circle -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                        Daftar Antrean Baru
+                    </button>
+                </div>
+
+                <!-- Skipped State UI -->
+                <div id="skipped-container" style="margin-top: var(--space-3); display: none;">
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: var(--space-3); box-shadow: 0 4px 12px rgba(239,68,68,0.1); margin-bottom: var(--space-2);">
+                        <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1);">
+                            <!-- SVG: Alert triangle -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <div style="font-size: var(--font-xs); font-weight: var(--font-extrabold); color: #ef4444; text-transform: uppercase; letter-spacing: var(--letter-wider);">Anda Dilewati oleh Dokter</div>
+                        </div>
+                        <p style="font-size: var(--font-xs); color: var(--color-text-secondary); margin: 0; line-height: var(--line-relaxed);">Nomor antrean Anda telah dilewati karena Anda tidak hadir saat dipanggil. Silakan daftar kembali untuk mendapatkan nomor antrean baru.</p>
+                    </div>
+                    <!-- Tombol Masuk Antrean Kembali (tanpa ketik ulang) -->
+                    <button class="btn-submit" onclick="reQueuePatient()" id="requeue-btn" style="background: var(--color-accent); display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; margin-bottom: var(--space-2);">
+                        <!-- SVG: Refresh CW -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                        Masuk Antrean Kembali
+                    </button>
+                    <!-- Tombol Daftar Baru (mulai dari nol) -->
+                    <button class="btn-submit" onclick="resetToNewRegistration()" style="background: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%;">
+                        <!-- SVG: Plus circle -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                        Daftar Antrean Baru
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Exam Result Modal -->
+        <div class="modal-overlay" id="exam-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+            <div class="modal-content" style="background: white; border-radius: 16px; padding: var(--space-4); max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+                    <div class="modal-title" style="font-size: var(--font-xl); font-weight: var(--font-extrabold);">Resep & Hasil Pemeriksaan</div>
+                    <button onclick="closeExamModal()" style="background: none; border: none; font-size: var(--font-xl); cursor: pointer; color: var(--color-text-tertiary);">&times;</button>
+                </div>
+                
+                <div class="printable-receipt" style="border: 2px dashed var(--color-text-primary); border-radius: 12px; padding: var(--space-4); background: #faf9f6; position: relative; margin-bottom: var(--space-3); font-family: 'JetBrains Mono', monospace; color: var(--color-text-primary);">
+                    <!-- Mini Receipt Header -->
+                    <div style="text-align: center; margin-bottom: var(--space-3); border-bottom: 2px dashed #94a3b8; padding-bottom: var(--space-2); display: flex; flex-direction: column; align-items: center;">
+                        <div style="font-size: var(--font-base); font-weight: var(--font-extrabold); letter-spacing: var(--letter-normal); display: flex; align-items: center; gap: 6px; color: var(--color-text-primary);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hospital"><path d="M12 6V2H4v20h16V6H12Z"/><path d="M16 12h-4v-4h-2v4H6v2h4v4h2v-4h4v-2Z"/></svg>
+                            KLINIK AQUA
+                        </div>
+                        <div style="font-size: var(--font-xs); color: var(--color-text-secondary); margin-top: 4px;">Jl. Pantai Indah No. 10, Jakarta</div>
+                        <div style="font-size: var(--font-xs); color: var(--color-text-secondary); margin-top: 2px;">Telp: (021) 555-0199</div>
+                    </div>
+                    
+                    <!-- Receipt Meta -->
+                    <div style="font-size: var(--font-xs); display: grid; grid-template-columns: auto auto; justify-content: space-between; margin-bottom: var(--space-3); gap: var(--space-1);">
+                        <div>No. Antrean: <strong id="receipt-queue-num">—</strong></div>
+                        <div style="text-align: right;" id="receipt-date">—</div>
+                        <div>Nama Pasien: <strong id="receipt-patient-name">—</strong></div>
+                        <div style="text-align: right;" id="receipt-poli">—</div>
+                    </div>
+                    
+                    <div style="border-bottom: 2px dashed #94a3b8; margin-bottom: var(--space-3);"></div>
+                    
+                    <!-- Content sections -->
+                    <div style="margin-bottom: var(--space-3);">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                            Diagnosa
+                        </div>
+                        <div id="modal-exam-diagnosa" style="font-size: var(--font-sm); font-weight: var(--font-semibold); line-height: var(--line-relaxed);">—</div>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-3);">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pill"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+                            Tindakan
+                        </div>
+                        <div id="modal-exam-tindakan" style="font-size: var(--font-sm); font-weight: var(--font-semibold); line-height: var(--line-relaxed);">—</div>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-4);">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                            Resep Obat Digital
+                        </div>
+                        <pre id="modal-exam-resep" style="font-family: inherit; font-size: var(--font-sm); background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-2); white-space: pre-wrap; margin: 0; font-weight: var(--font-semibold); line-height: var(--line-relaxed);">—</pre>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-3);" id="receipt-catatan-wrapper">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                            Catatan Dokter
+                        </div>
+                        <div id="modal-exam-catatan" style="font-size: var(--font-sm); font-style: italic;">—</div>
+                    </div>
+                    
+                    <div style="border-bottom: 2px dashed #94a3b8; margin-bottom: var(--space-3);"></div>
+                    
+                    <!-- Bottom verification section with QR Code -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-2);">
+                        <div>
+                            <div style="font-size: var(--font-xs); font-weight: var(--font-bold);">VERIFIKASI RESEP DIGITAL</div>
+                            <div style="font-size: 8px; color: var(--color-text-secondary); line-height: 1.2; margin-top: 2px; max-width: 180px;">Tap / klik QR untuk perbesar &amp; scan.</div>
+                        </div>
+                        <div id="modal-exam-qr-container" onclick="openQrModal()" title="Tap untuk perbesar QR" style="cursor: pointer; transition: transform 0.15s ease; flex-shrink: 0;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                            <div style="width: 70px; height: 70px; background: #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; color: var(--color-text-muted);">Memuat QR...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: var(--space-2); margin-top: var(--space-3);">
+                    <button class="btn-submit" onclick="printReceipt()" style="background-color: var(--color-accent); flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="1"/><path d="M6 9V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5"/></svg>
+                        Cetak Resep Digital
+                    </button>
+                    <button class="btn-submit" onclick="closeExamModal()" style="background-color: var(--color-text-tertiary); flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Live Queue -->
+        <div class="queue-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap; gap: var(--space-2);">
+                <div class="section-title" style="margin-bottom: 0;">Sedang Dilayani</div>
+                <div style="display: flex; align-items: center; gap: var(--space-2); background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-1) var(--space-2); cursor: pointer; transition: all 0.2s ease;" onclick="togglePublicAudio()" id="audio-toggle-btn" title="Aktifkan/Senyapkan Panggilan Suara Publik">
+                    <span id="audio-toggle-icon" style="display: flex; align-items: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-volume-2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    </span>
+                    <span style="font-size: var(--font-xs); font-weight: var(--font-bold);" id="audio-toggle-text">Suara Publik: Aktif</span>
+                </div>
+            </div>
+            <div class="queue-list" id="queue-list">
+                {% for data in poli_data %}
+                        <div class="queue-item" data-kode="{{ data.poli.kode }}">
+                    <div>
+                        <div class="queue-poli">{{ data.poli.nama }}</div>
+                        <div class="queue-number" id="queue-num-{{ data.poli.kode }}">—</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="queue-status-label queue-status-idle" id="queue-status-{{ data.poli.kode }}">
+                            <span class="queue-status-icon" aria-hidden="true">○</span>
+                            <span class="queue-status-text">Menunggu</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="queue-footer">Diperbarui secara otomatis</div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Zoom Modal -->
+<div id="qr-zoom-modal" onclick="closeQrModal()" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:16px; padding: 24px; transition: all 0.3s ease;">
+    <div onclick="event.stopPropagation()" style="background:white; border-radius:12px; padding:32px 32px 24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); text-align:center; max-width:340px; width:100%; border: 1px solid rgba(226,232,240,0.8);">
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:var(--color-text-secondary); margin-bottom:20px;">Verifikasi Resep Digital</div>
+        <div style="background:#f8fafc; padding:16px; border-radius:8px; display:inline-block; margin-bottom:16px; border:1px solid #f1f5f9;">
+            <img id="qr-zoom-img" src="" alt="QR Code" style="width:200px; height:200px; display:block; margin:0 auto; border-radius:6px;" />
+        </div>
+        <div style="font-size:12px; color:var(--color-text-secondary); margin-top:8px; line-height:1.5; font-weight:500;">Pindai QR ini di bagian Farmasi untuk memvalidasi resep obat Anda.</div>
+        <button onclick="closeQrModal()" style="margin-top:20px; width:100%; padding:12px 24px; background:#6366f1; color:white; border:none; border-radius:8px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:0.02em; transition:all 0.2s ease; box-shadow:0 4px 12px rgba(99,102,241,0.25);" onmouseover="this.style.background='#4f46e5'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#6366f1'; this.style.transform='none';">Tutup</button>
+    </div>
+    <div style="font-size:12px; color:rgba(255,255,255,0.6); font-weight:500;">Ketuk di mana saja untuk menutup</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    let selectedPoliKode = '';
+    let selectedPoliNama = '';
+    let currentTicketId = null;
+    let currentPoliKode = null;
+    let hasAlertedNear = false;
+    let hasAlertedCall = false;
+    let publicAudioEnabled = true;
+
+    function togglePublicAudio() {
+        publicAudioEnabled = !publicAudioEnabled;
+        const btn = document.getElementById('audio-toggle-btn');
+        const icon = document.getElementById('audio-toggle-icon');
+        const text = document.getElementById('audio-toggle-text');
+        
+        if (publicAudioEnabled) {
+            btn.style.background = '#f3f4f6';
+            btn.style.borderColor = 'var(--color-text-primary)';
+            icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-volume-2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+            text.innerText = 'Suara Publik: Aktif';
+            showToast('Suara panggilan publik diaktifkan.', 'info');
+        } else {
+            btn.style.background = '#fee2e2';
+            btn.style.borderColor = '#ef4444';
+            icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-volume-x"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
+            text.innerText = 'Suara Publik: Senyap';
+            showToast('Suara panggilan publik dinonaktifkan.', 'warning');
+        }
+    }
+    const poliMeta = {
+        {% for data in poli_data %}
+        '{{ data.poli.kode }}': '{{ data.poli.nama }}',
+        {% endfor %}
+    };
+    const poliKodes = Object.keys(poliMeta);
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const localTicketId = localStorage.getItem('klinik_aqua_antrian_id');
+        if (localTicketId) {
+            loadTicket(localTicketId);
+        }
+
+        updatePoliQuotas();
+        loadAllPublicQueues();
+        poliKodes.forEach((kode) => {
+            connectWebSocket(kode, (data) => {
+                if (['update_queue', 'call_patient', 'recall_patient', 'complete_exam'].includes(data.action)) {
+                    loadPublicQueue(kode);
+                    updatePoliQuotas();
+
+                    const isOwnTicket = currentTicketId && data.antrian_id === currentTicketId;
+                    const poliNama = data.poli_nama || poliMeta[kode] || 'Poliklinik';
+
+                    if (data.action === 'call_patient') {
+                        if (publicAudioEnabled && !isOwnTicket) {
+                            KlinikAquaAudio.speak(
+                                `Nomor antrean ${data.nomor_antrian}, atas nama ${data.nama_pasien}, silakan menuju ke ${poliNama}`,
+                                { key: `public-call-${data.antrian_id}`, alarm: true, delayMs: 300 }
+                            );
+                        }
+                    }
+
+                    if (data.action === 'recall_patient') {
+                        if (isOwnTicket) {
+                            showToast('Nomor Anda dipanggil ulang! Segera masuk.', 'warning');
+                            document.getElementById('ticket-hero').classList.add('called-state');
+                            KlinikAquaAudio.speak(
+                                `Nomor antrean Anda ${data.nomor_antrian} dipanggil ulang di ${poliNama}. Silakan segera menuju ruangan.`,
+                                { key: `patient-recall-${data.antrian_id}`, force: true, alarm: true, delayMs: 1800 }
+                            );
+                        } else if (publicAudioEnabled) {
+                            KlinikAquaAudio.speak(
+                                `Nomor antrean ${data.nomor_antrian}, atas nama ${data.nama_pasien}, silakan menuju ke ${poliNama}`,
+                                { key: `public-recall-${data.antrian_id}`, force: true, alarm: true, delayMs: 300 }
+                            );
+                        }
+                    }
+
+                    if (currentPoliKode === kode && currentTicketId && data.action !== 'recall_patient') {
+                        fetchTicketData(currentTicketId);
+                    }
+                }
+            });
+        });
+        
+        // Auto-fill NIK & Restrict non-numeric
+        const nikInput = document.getElementById('nik');
+        nikInput.addEventListener('input', async (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+            const nik = e.target.value.trim();
+            if (nik.length === 16) {
+                try {
+                    const res = await fetch(`/api/pasien-info/${nik}/`);
+                    const data = await res.json();
+                    if (data.found) {
+                        document.getElementById('nama').value = data.nama;
+                        document.getElementById('telepon').value = data.telepon || '';
+                        document.getElementById('email').value = data.email || '';
+                        showToast('Data pasien ditemukan, nama dan kontak diisi otomatis!', 'success');
+                    }
+                } catch (err) {
+                    console.error('Error fetching patient info:', err);
+                }
             }
-          }
-        }
-        return cookieValue;
-      }
-      const csrftoken = getCookie("csrftoken");
-
-      let currentPoli =
-        document.getElementById("operatorPoli")?.value || "umum";
-      let currentAntrianId = null;
-      let waitingData = [];
-
-      // Fungsi refresh panel operator
-      async function refreshOperator() {
-        const poliKode = document.getElementById("operatorPoli").value;
-        currentPoli = poliKode;
-        // Ambil daftar waiting
-        const respList = await fetch(`/api/antrian/${poliKode}/`);
-        const list = await respList.json();
-        waitingData = list;
-        const waitingDiv = document.getElementById("waitingList");
-        if (list.length === 0) {
-          waitingDiv.innerHTML =
-            '<div class="text-center text-gray-400 py-2">Tidak ada antrian</div>';
-        } else {
-          waitingDiv.innerHTML =
-            '<ul class="divide-y">' +
-            list
-              .map(
-                (q) =>
-                  `<li class="py-1 ${currentAntrianId === q.id ? "bg-teal-100 font-bold" : ""}">${q.nomor} - ${q.nama}</li>`,
-              )
-              .join("") +
-            "</ul>";
-        }
-        // Ambil current antrian (pertama dalam waiting)
-        if (list.length > 0 && !currentAntrianId) {
-          currentAntrianId = list[0].id;
-          document.getElementById("currentNumber").innerText = list[0].nomor;
-          document.getElementById("currentName").innerText = list[0].nama;
-        } else if (list.length === 0) {
-          currentAntrianId = null;
-          document.getElementById("currentNumber").innerText = "—";
-          document.getElementById("currentName").innerText = "";
-        } else if (
-          currentAntrianId &&
-          !list.find((q) => q.id === currentAntrianId)
-        ) {
-          // jika antrian saat ini sudah selesai, pilih pertama
-          currentAntrianId = list[0].id;
-          document.getElementById("currentNumber").innerText = list[0].nomor;
-          document.getElementById("currentName").innerText = list[0].nama;
-        }
-      }
-
-      // Fungsi update status (next/prev/complete)
-      async function updateQueue(action, extraData = {}) {
-        const data = {
-          poli_kode: currentPoli,
-          action: action,
-          current_id: currentAntrianId,
-          ...extraData,
-        };
-        const resp = await fetch("/api/update/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrftoken,
-          },
-          body: JSON.stringify(data),
-        });
-        const result = await resp.json();
-        if (result.success) {
-          if (result.selected) {
-            currentAntrianId = result.selected.id;
-            document.getElementById("currentNumber").innerText =
-              result.selected.nomor;
-            document.getElementById("currentName").innerText =
-              result.selected.nama;
-          } else {
-            currentAntrianId = null;
-            document.getElementById("currentNumber").innerText = "—";
-            document.getElementById("currentName").innerText = "";
-          }
-          refreshOperator();
-        } else {
-          alert(result.msg || "Gagal");
-        }
-      }
-
-      // Event tombol
-      document
-        .getElementById("btnNext")
-        ?.addEventListener("click", () => updateQueue("next"));
-      document
-        .getElementById("btnPrev")
-        ?.addEventListener("click", () => updateQueue("prev"));
-      document
-        .getElementById("btnComplete")
-        ?.addEventListener("click", () =>
-          updateQueue("complete", { antrian_id: currentAntrianId }),
-        );
-      document
-        .getElementById("operatorPoli")
-        ?.addEventListener("change", () => {
-          currentAntrianId = null;
-          refreshOperator();
         });
 
-      // Daftar antrian baru
-      document
-        .getElementById("btnDaftar")
-        ?.addEventListener("click", async () => {
-          const poli_kode = document.getElementById("poliSelect").value;
-          const nik = document.getElementById("nik").value;
-          const nama = document.getElementById("nama").value;
-          const email = document.getElementById("email").value;
-          const telepon = document.getElementById("telp").value;
-          if (!poli_kode || !nik || !nama || !email) {
-            alert("Lengkapi poli, NIK, nama, email");
+        // Restrict phone number to digits only
+        document.getElementById('telepon').addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Safe background backup polling (45s) without console clutter
+        setInterval(() => {
+            loadAllPublicQueues();
+            updatePoliQuotas();
+            if (currentTicketId) {
+                fetchTicketData(currentTicketId);
+            }
+        }, 45000);
+    });
+
+    function selectPoli(kode, nama) {
+        selectedPoliKode = kode;
+        selectedPoliNama = nama;
+
+        document.querySelectorAll('.poli-card').forEach((card) => {
+            card.classList.toggle('selected', card.dataset.kode === kode);
+        });
+
+        document.getElementById('ticket-status').innerText = `Poli ${nama} Dipilih`;
+        document.getElementById('ticket-status').style.color = '#34d399';
+        document.getElementById('ticket-status').style.borderColor = '#34d399';
+        document.getElementById('ticket-status').style.background = '#d1fae5';
+        
+        document.getElementById('poli-hint').style.display = 'none';
+        document.getElementById('submit-btn').innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+            Ambil Nomor Antrean — ${nama}
+        `;
+        document.getElementById('submit-btn').disabled = false;
+    }
+
+    async function handleRegistration(e) {
+        e.preventDefault();
+        if (!selectedPoliKode) {
+            showToast('Pilih poliklinik terlebih dahulu!', 'warning');
             return;
-          }
-          const resp = await fetch("/api/daftar/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrftoken,
-            },
-            body: JSON.stringify({ poli_kode, nik, nama, email, telepon }),
-          });
-          const data = await resp.json();
-          if (data.success) {
-            document.getElementById("hasilAntrian").innerText =
-              `  Nomor antrian: ${data.queueNumber}`;
-            document.getElementById("nik").value = "";
-            document.getElementById("nama").value = "";
-            document.getElementById("email").value = "";
-            document.getElementById("telp").value = "";
-            refreshOperator();
-            setTimeout(
-              () => (document.getElementById("hasilAntrian").innerText = ""),
-              3000,
-            );
-          } else {
-            alert(data.msg);
-          }
-        });
+        }
 
-      // Cari riwayat
-      document
-        .getElementById("btnCari")
-        ?.addEventListener("click", async () => {
-          const nik = document.getElementById("cariNik").value;
-          if (!nik) return;
-          const resp = await fetch(`/api/riwayat/${nik}/`);
-          const records = await resp.json();
-          const tbody = document.getElementById("riwayatBody");
-          if (records.length === 0) {
-            tbody.innerHTML =
-              '<tr><td colspan="4" class="text-center py-4 text-gray-400">Tidak ada riwayat</td></tr>';
-          } else {
-            tbody.innerHTML = records
-              .map(
-                (r) =>
-                  `<tr><td class="px-2 py-1">${r.tanggal}</td><td class="px-2 py-1">${r.poli}</td><td class="px-2 py-1">${r.diagnosa}</td><td class="px-2 py-1">${r.tindakan}</td></tr>`,
-              )
-              .join("");
-          }
-        });
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Sedang Memproses Pendaftaran...
+        `;
 
-      // Dashboard cards memilih poli
-      document.querySelectorAll("#serviceCards > div").forEach((card) => {
-        card.addEventListener("click", () => {
-          const poliVal = card.getAttribute("data-poli");
-          document.getElementById("poliSelect").value = poliVal;
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        });
-      });
+        const payload = {
+            poli_kode: selectedPoliKode,
+            nik: document.getElementById('nik').value.trim(),
+            nama: document.getElementById('nama').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            telepon: document.getElementById('telepon').value.trim(),
+            prioritas: parseInt(document.getElementById('prioritas').value, 10),
+        };
 
-      refreshOperator();
-      setInterval(refreshOperator, 5000); // refresh setiap 5 detik
-    </script>
-  </body>
-</html>
+        try {
+            const res = await apiPost('/api/daftar/', payload);
+            if (res.success) {
+                showToast('Nomor antrean berhasil dibuat!', 'success');
+                localStorage.setItem('klinik_aqua_antrian_id', res.antrian_id);
+                loadTicket(res.antrian_id);
+            } else {
+                showToast(res.msg || 'Pendaftaran gagal.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        } catch (err) {
+            showToast('Koneksi server terganggu.', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    }
+
+    async function loadTicket(ticketId) {
+        currentTicketId = ticketId;
+        currentPoliKode = selectedPoliKode || '';
+        hasAlertedNear = false;
+        hasAlertedCall = false;
+        
+        // Auto-mute public voice announcements on personal device when active ticket is present
+        if (publicAudioEnabled) {
+            togglePublicAudio();
+        }
+        
+        document.getElementById('reg-section').style.display = 'none';
+        document.getElementById('ticket-section').style.display = 'block';
+        document.getElementById('poli-selection-container').style.display = 'none';
+        
+        await fetchTicketData(ticketId);
+    }
+    
+    async function fetchTicketData(ticketId) {
+        try {
+            const res = await fetch(`/api/tiket/${ticketId}/`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    showToast('Tiket tidak ditemukan. Mungkin sudah dihapus dari sistem.', 'warning');
+                    resetToNewRegistration(true);
+                }
+                return;
+            }
+            const d = await res.json();
+            if (!d.nomor_antrian) {
+                showToast('Data tiket tidak valid.', 'warning');
+                resetToNewRegistration();
+                return;
+            }
+
+            if (!currentPoliKode) {
+                currentPoliKode = d.poli_kode;
+            }
+
+            document.getElementById('ticket-number').innerText = d.nomor_antrian;
+            document.getElementById('patient-name').innerText = d.nama_pasien;
+            document.getElementById('poli-nama').innerText = d.poli_nama;
+
+            document.getElementById('ticket-status').innerText = d.status === 'called' ? 'Giliran Anda' : 
+                d.status === 'waiting' ? 'Menunggu' : 
+                d.status === 'done' ? 'Selesai' : 
+                d.status === 'skipped' ? 'Dilewati' : d.status;
+            
+            if (d.status === 'called') {
+                document.getElementById('ticket-status').style.color = 'var(--color-accent)';
+                document.getElementById('ticket-status').style.borderColor = 'var(--color-accent)';
+                document.getElementById('ticket-status').style.background = 'var(--color-accent-bg)';
+            } else if (d.status === 'done') {
+                document.getElementById('ticket-status').style.color = 'var(--color-accent)';
+                document.getElementById('ticket-status').style.borderColor = 'var(--color-accent)';
+                document.getElementById('ticket-status').style.background = 'var(--color-accent-bg)';
+            } else if (d.status === 'skipped') {
+                document.getElementById('ticket-status').style.color = '#ef4444';
+                document.getElementById('ticket-status').style.borderColor = '#ef4444';
+                document.getElementById('ticket-status').style.background = '#fef2f2';
+            } else {
+                document.getElementById('ticket-status').style.color = '#f59e0b';
+                document.getElementById('ticket-status').style.borderColor = '#f59e0b';
+                document.getElementById('ticket-status').style.background = '#fef3c7';
+            }
+
+            updateBadge(d.status);
+
+            // Show/hide view exam button based on status
+            const viewExamBtnContainer = document.getElementById('view-exam-btn-container');
+            const countAheadCard = document.getElementById('count-ahead-card');
+            const timeEstimatorCard = document.getElementById('time-estimator-card');
+            const cancelBtnContainer = document.getElementById('cancel-btn-container');
+            
+            if (d.status === 'done') {
+                viewExamBtnContainer.style.display = 'block';
+                countAheadCard.style.display = 'none';
+                timeEstimatorCard.style.display = 'none';
+                cancelBtnContainer.style.display = 'none';
+                document.getElementById('skipped-container').style.display = 'none';
+                
+                // Remove called state if any
+                document.getElementById('ticket-hero').classList.remove('called-state');
+                
+                // Store exam data for modal
+                window.currentExamData = d.pemeriksaan;
+            } else {
+                viewExamBtnContainer.style.display = 'none';
+                countAheadCard.style.display = 'block';
+                timeEstimatorCard.style.display = 'block';
+                
+                if (d.status === 'waiting') {
+                    cancelBtnContainer.style.display = 'block';
+                } else {
+                    cancelBtnContainer.style.display = 'none';
+                }
+                
+                document.getElementById('count-ahead').innerText = d.jumlah_di_depan;
+                document.getElementById('time-estimator').innerText = d.estimasi_waktu;
+
+                if (d.status === 'waiting' && d.jumlah_di_depan <= 2) {
+                    if (!hasAlertedNear) {
+                        hasAlertedNear = true;
+                        showToast('Giliran Anda segera! Harap mendekati ruangan.', 'warning');
+                        KlinikAquaAudio.speak(
+                            `Harap bersiap, antrean Anda nomor ${d.nomor_antrian} di ${d.poli_nama} segera dipanggil.`,
+                            { key: `near-${ticketId}`, alarm: true, delayMs: 1800 }
+                        );
+                    }
+                }
+
+                if (d.status === 'called' && !hasAlertedCall) {
+                    hasAlertedCall = true;
+                    showToast('Nomor Anda dipanggil! Segera masuk.', 'success');
+                    document.getElementById('ticket-hero').classList.add('called-state');
+                    KlinikAquaAudio.speak(
+                        `Nomor antrean Anda ${d.nomor_antrian} sedang dipanggil di ${d.poli_nama}.`,
+                        { key: `called-${ticketId}`, alarm: true, alarmTimes: 3, delayMs: 1800 }
+                    );
+                }
+
+                // Handle skipped state
+                if (d.status === 'skipped') {
+                    document.getElementById('skipped-container').style.display = 'block';
+                    document.getElementById('cancel-btn-container').style.display = 'none';
+                    document.getElementById('count-ahead-card').style.display = 'none';
+                    document.getElementById('time-estimator-card').style.display = 'none';
+                } else {
+                    document.getElementById('skipped-container').style.display = 'none';
+                }
+            }
+
+            // Sinkronkan panel "Sedang Dilayani" dengan status tiket di perangkat ini
+            loadAllPublicQueues();
+        } catch (e) {
+            console.error('fetchTicketData error:', e);
+            showToast('Gagal memuat tiket. Silakan daftar ulang.', 'error');
+            resetToNewRegistration(true);
+        }
+    }
+    
+    async function cancelQueue() {
+        if (!currentTicketId) return;
+        if (!confirm('Apakah Anda yakin ingin membatalkan antrean Anda?')) return;
+        try {
+            const res = await apiPost(`/api/batal-antrian/${currentTicketId}/`, {});
+            if (res.success) {
+                showToast(res.msg, 'success');
+                resetToNewRegistration();
+            } else {
+                showToast(res.msg, 'error');
+            }
+        } catch (err) {
+            showToast('Koneksi server terganggu.', 'error');
+        }
+    }
+    
+    async function reQueuePatient() {
+        if (!currentTicketId) return;
+        const btn = document.getElementById('requeue-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                Mendaftarkan kembali...
+            `;
+        }
+        try {
+            const res = await apiPost(`/api/daftar-kembali/${currentTicketId}/`, {});
+            if (res.success) {
+                showToast(res.msg, 'success');
+                hasAlertedNear = false;
+                hasAlertedCall = false;
+                document.getElementById('skipped-container').style.display = 'none';
+                document.getElementById('count-ahead-card').style.display = 'block';
+                document.getElementById('time-estimator-card').style.display = 'block';
+                document.getElementById('cancel-btn-container').style.display = 'block';
+                await fetchTicketData(currentTicketId);
+            } else {
+                showToast(res.msg, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Masuk Antrean Kembali'; }
+            }
+        } catch (err) {
+            showToast('Koneksi server terganggu.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Masuk Antrean Kembali'; }
+        }
+    }
+
+    function openExamModal() {
+        const examData = window.currentExamData;
+        if (examData) {
+            // Dynamic receipt details
+            document.getElementById('receipt-queue-num').innerText = document.getElementById('ticket-number').innerText || '—';
+            document.getElementById('receipt-patient-name').innerText = document.getElementById('patient-name').innerText || '—';
+            document.getElementById('receipt-poli').innerText = document.getElementById('poli-nama').innerText || '—';
+            document.getElementById('receipt-date').innerText = new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+
+            document.getElementById('modal-exam-diagnosa').innerText = examData.diagnosa || '—';
+            document.getElementById('modal-exam-tindakan').innerText = examData.tindakan || '—';
+            document.getElementById('modal-exam-resep').innerText = examData.resep_obat || '—';
+            
+            // Generate real dynamic QR code with clickable zoom
+            const qrContainer = document.getElementById('modal-exam-qr-container');
+            if (qrContainer && currentTicketId) {
+                const verificationUrl = window.location.origin + '/tiket/' + currentTicketId + '/';
+                currentQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=1e293b&bgcolor=ffffff&data=${encodeURIComponent(verificationUrl)}`;
+                const thumbUrl = `https://api.qrserver.com/v1/create-qr-code/?size=70x70&color=1e293b&data=${encodeURIComponent(verificationUrl)}`;
+                qrContainer.innerHTML = `
+                    <img src="${thumbUrl}" 
+                         alt="QR Code Resep — Tap untuk perbesar" 
+                         width="70" height="70" 
+                         style="background: white; padding: 6px; border: 1px solid #e2e8f0; border-radius: 8px; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.04); transition: transform 0.15s ease;" />
+                `;
+            }
+
+            if (examData.catatan) {
+                document.getElementById('receipt-catatan-wrapper').style.display = 'block';
+                document.getElementById('modal-exam-catatan').innerText = examData.catatan;
+            } else {
+                document.getElementById('receipt-catatan-wrapper').style.display = 'none';
+            }
+        }
+        document.getElementById('exam-modal').style.display = 'flex';
+    }
+    
+    function printReceipt() {
+        window.print();
+    }
+    
+    function closeExamModal() {
+        document.getElementById('exam-modal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'exam-modal') {
+            closeExamModal();
+        }
+    });
+
+    function resetToNewRegistration(skipToast = false) {
+        // Clear localStorage
+        localStorage.removeItem('klinik_aqua_antrian_id');
+        
+        // Reset variables
+        currentTicketId = null;
+        currentPoliKode = null;
+        hasAlertedNear = false;
+        hasAlertedCall = false;
+        selectedPoliKode = '';
+        selectedPoliNama = '';
+        window.currentExamData = null;
+        
+        // Unmute public voice announcements when returning to new registration screen
+        if (!publicAudioEnabled) {
+            togglePublicAudio();
+        }
+
+        // Reset form
+        document.getElementById('reg-form').reset();
+        
+        // Show/hide sections
+        document.getElementById('reg-section').style.display = 'block';
+        document.getElementById('ticket-section').style.display = 'none';
+        document.getElementById('poli-selection-container').style.display = 'block';
+        document.getElementById('view-exam-btn-container').style.display = 'none';
+        document.getElementById('cancel-btn-container').style.display = 'none';
+        
+        // Restore warning hint and original submit button text
+        document.getElementById('poli-hint').style.display = 'block';
+        document.getElementById('submit-btn').innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+            Ambil Nomor Antrean`;
+        
+        // Reset ticket status
+        document.getElementById('ticket-status').innerText = 'Belum Terdaftar';
+        document.getElementById('ticket-status').style.color = 'var(--color-text-tertiary)';
+        document.getElementById('ticket-status').style.borderColor = 'var(--color-text-tertiary)';
+        document.getElementById('ticket-status').style.background = 'transparent';
+        
+        // Reset badge status
+        updateBadge('');
+        
+        // Remove selected class from poli cards
+        document.querySelectorAll('.poli-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Disable submit button
+        document.getElementById('submit-btn').disabled = true;
+        
+        // Remove called state from ticket hero
+        document.getElementById('ticket-hero').classList.remove('called-state');
+        
+        // Show count-ahead and time-estimator cards again
+        document.getElementById('count-ahead-card').style.display = 'block';
+        document.getElementById('time-estimator-card').style.display = 'block';
+        
+        // Reset skipped banner
+        if (document.getElementById('skipped-container')) {
+            document.getElementById('skipped-container').style.display = 'none';
+        }
+        
+        if (!skipToast) {
+            showToast('Kembali ke pendaftaran antrean baru!', 'success');
+        }
+    }
+
+    function updateBadge(status) {
+        const b = document.getElementById('badge-status');
+        b.style.background = 'white';
+        b.style.borderColor = 'var(--color-text-primary)';
+        b.style.color = 'var(--color-text-primary)';
+        b.innerText = 'Menghubungkan...';
+        
+        if (status === 'waiting') {
+            b.style.background = '#fef3c7';
+            b.style.borderColor = '#f59e0b';
+            b.style.color = '#f59e0b';
+            b.innerText = 'Menunggu';
+        } else if (status === 'called') {
+            b.style.background = 'var(--color-accent-bg)';
+            b.style.borderColor = 'var(--color-accent)';
+            b.style.color = 'var(--color-accent)';
+            b.innerText = 'Giliran Anda';
+        } else if (status === 'done') {
+            b.style.background = 'var(--color-accent-bg)';
+            b.style.borderColor = 'var(--color-accent)';
+            b.style.color = 'var(--color-accent)';
+            b.innerText = 'Selesai';
+        } else if (status === 'skipped') {
+            b.style.background = '#fee2e2';
+            b.style.borderColor = '#ef4444';
+            b.style.color = '#ef4444';
+            b.innerText = 'Dilewati';
+        }
+    }
+
+    async function updatePoliQuotas() {
+        try {
+            const res = await fetch('/api/polis/');
+            const data = await res.json();
+            if (!data.success) return;
+
+            data.polis.forEach((p) => {
+                const filledEl = document.getElementById(`filled-${p.kode}`);
+                const badgeEl = document.getElementById(`status-badge-${p.kode}`);
+                const card = document.querySelector(`.poli-card[data-kode="${p.kode}"]`);
+
+                if (filledEl) filledEl.innerText = `${p.current_count}/${p.kuota_harian}`;
+
+                const isFull = p.current_count >= p.kuota_harian;
+                if (badgeEl) {
+                    if (isFull) {
+                        badgeEl.innerText = 'PENUH';
+                        badgeEl.style.background = '#fee2e2';
+                        badgeEl.style.color = '#ef4444';
+                        badgeEl.style.borderColor = '#ef4444';
+                    } else {
+                        badgeEl.innerText = 'BUKA';
+                        badgeEl.style.background = 'white';
+                        badgeEl.style.color = 'inherit';
+                        badgeEl.style.borderColor = 'var(--color-text-primary)';
+                    }
+                }
+
+                if (card && isFull && selectedPoliKode === p.kode) {
+                    selectedPoliKode = '';
+                    selectedPoliNama = '';
+                    card.classList.remove('selected');
+                    document.getElementById('ticket-status').innerText = 'Belum Terdaftar';
+                    document.getElementById('ticket-status').style.color = '#ef4444';
+                    document.getElementById('ticket-status').style.borderColor = '#ef4444';
+                    document.getElementById('ticket-status').style.background = '#fef2f2';
+                    document.getElementById('submit-btn').disabled = true;
+                    showToast(`Poliklinik ${p.nama} sudah penuh! Silakan pilih poli lain.`, 'warning');
+                }
+            });
+        } catch (e) {}
+    }
+
+    async function loadAllPublicQueues() {
+        await Promise.all(poliKodes.map((kode) => loadPublicQueue(kode)));
+    }
+
+    function setQueueStatusLabel(kode, mode) {
+        const statusEl = document.getElementById(`queue-status-${kode}`);
+        if (!statusEl) return;
+        const textEl = statusEl.querySelector('.queue-status-text');
+        const iconEl = statusEl.querySelector('.queue-status-icon');
+        statusEl.classList.remove('queue-status-called', 'queue-status-waiting', 'queue-status-idle');
+
+        if (mode === 'yours') {
+            statusEl.classList.add('queue-status-called');
+            if (textEl) textEl.textContent = 'Giliran Anda';
+            if (iconEl) {
+                iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 13v-2Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>';
+            }
+        } else if (mode === 'called') {
+            statusEl.classList.add('queue-status-called');
+            if (textEl) textEl.textContent = 'Dipanggil';
+            if (iconEl) {
+                iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 13v-2Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>';
+            }
+        } else if (mode === 'waiting') {
+            statusEl.classList.add('queue-status-waiting');
+            if (textEl) textEl.textContent = 'Menunggu';
+            if (iconEl) {
+                iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+            }
+        } else {
+            statusEl.classList.add('queue-status-idle');
+            if (textEl) textEl.textContent = 'Kosong';
+            if (iconEl) iconEl.textContent = '—';
+        }
+    }
+
+    async function loadPublicQueue(kode) {
+        try {
+            const list = await (await fetch(`/api/antrian/${kode}/`)).json();
+            const called = list.find((item) => item.status === 'called');
+            const waiting = list.find((item) => item.status === 'waiting');
+
+            const numEl = document.getElementById(`queue-num-${kode}`);
+            const itemEl = document.querySelector(`.queue-item[data-kode="${kode}"]`);
+            if (!numEl || !itemEl) return;
+
+            itemEl.classList.remove('called', 'mine-called', 'mine-waiting');
+
+            const isMyPoli = currentPoliKode === kode && currentTicketId;
+            const myEntry = isMyPoli
+                ? list.find((item) => String(item.id) === String(currentTicketId))
+                : null;
+
+            if (called) {
+                numEl.innerText = called.nomor_antrian;
+                itemEl.classList.add('called');
+                const isMyTurn = myEntry && String(myEntry.id) === String(called.id);
+                setQueueStatusLabel(kode, isMyTurn ? 'yours' : 'called');
+                if (isMyTurn) {
+                    itemEl.classList.add('mine-called');
+                }
+            } else if (waiting) {
+                numEl.innerText = waiting.nomor_antrian;
+                setQueueStatusLabel(kode, 'waiting');
+                if (myEntry && myEntry.status === 'waiting') {
+                    itemEl.classList.add('mine-waiting');
+                }
+            } else {
+                numEl.innerText = '—';
+                setQueueStatusLabel(kode, 'idle');
+            }
+        } catch (e) {}
+    }
+
+    // ─── QR Zoom Modal ────────────────────────────────────────────────
+    let currentQrUrl = '';
+
+    function openQrModal() {
+        const modal = document.getElementById('qr-zoom-modal');
+        if (!modal || !currentQrUrl) return;
+        const imgEl = document.getElementById('qr-zoom-img');
+        if (imgEl) imgEl.src = currentQrUrl;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeQrModal() {
+        const modal = document.getElementById('qr-zoom-modal');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeQrModal(); });
+</script>
+{% endblock %}

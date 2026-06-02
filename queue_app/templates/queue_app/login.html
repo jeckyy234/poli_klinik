@@ -1,0 +1,95 @@
+{% extends 'queue_app/base.html' %}
+{% block title %}Login Staf — Klinik Aqua{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-card {
+        background: var(--color-surface);
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: var(--space-6);
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.03);
+    }
+    .error-box {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: var(--space-3);
+        margin-bottom: var(--space-5);
+    }
+    .error-text {
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        color: #991b1b;
+    }
+    .btn-login {
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--color-accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        line-height: var(--line-snug);
+    }
+    .btn-login:hover {
+        transform: translateY(-1px);
+        background: var(--color-accent-hover);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+    }
+    .btn-login:active {
+        transform: translateY(0);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content" style="display: flex; align-items: center; justify-content: center; min-height: 70vh;">
+    <div style="width: 100%; max-width: 420px;">
+        <div style="text-align: center; margin-bottom: var(--space-6);">
+            <div style="margin-bottom: var(--space-3); color: var(--color-accent); display: flex; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div class="section-title" style="justify-content: center; margin-bottom: var(--space-2);">KLINIK AQUA</div>
+            <h1 style="font-size: var(--font-xl); font-weight: var(--font-extrabold);">LOGIN KREDENSIAL STAF</h1>
+        </div>
+
+        <div class="login-card">
+            {% if error %}
+            <div class="error-box">
+                <p class="error-text" style="display: flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    {{ error }}
+                </p>
+            </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="admin / dokter" autofocus required>
+                </div>
+                <div class="form-group" style="margin-bottom: var(--space-6);">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-login" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    MASUK KE SISTEM
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+            </form>
+        </div>
+
+        <p style="text-align: center; margin-top: var(--space-5); font-size: var(--font-sm); color: var(--color-text-tertiary);">
+            Bukan Staf/Dokter? <a href="{% url 'queue_app:index' %}" style="color: #34d399; font-weight: var(--font-bold); text-decoration: none; border-bottom: 1.5px solid transparent; transition: border 0.1s;" onmouseover="this.style.borderBottomColor='#34d399'" onmouseout="this.style.borderBottomColor='transparent'">Ambil tiket antrean</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

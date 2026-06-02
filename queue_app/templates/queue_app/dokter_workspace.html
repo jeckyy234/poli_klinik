@@ -1,0 +1,870 @@
+{% extends 'queue_app/base.html' %}
+{% block title %}Ruang Kerja Dokter — {{ poli.nama }}{% endblock %}
+{% block extra_css %}
+<style>
+    .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: var(--space-3);
+        flex-wrap: wrap;
+        gap: var(--space-2);
+    }
+    .page-title {
+        font-size: var(--font-xl);
+        font-weight: var(--font-extrabold);
+        line-height: var(--line-tight);
+    }
+    .clock-display {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-snug);
+    }
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 8px;
+        background: var(--color-surface);
+        font-family: inherit;
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--color-text-primary);
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        line-height: var(--line-snug);
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-color: var(--color-text-secondary);
+    }
+    .btn-primary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .current-patient-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 12px;
+        padding: var(--space-4);
+        margin-bottom: var(--space-4);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: all 0.15s ease;
+    }
+    .current-patient-card.active {
+        border-color: var(--color-accent);
+        box-shadow: 0 4px 12px rgba(99,102,241, 0.2);
+        background: rgba(99,102,241, 0.05);
+    }
+    .current-patient-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+    }
+    .current-patient-info {
+        flex: 1;
+    }
+    .current-patient-label {
+        font-size: var(--font-xs);
+        font-weight: var(--font-bold);
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-wider);
+        margin-bottom: var(--space-1);
+        line-height: var(--line-snug);
+    }
+    .current-patient-number {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: var(--font-2xl);
+        font-weight: var(--font-extrabold);
+        line-height: var(--line-tight);
+        letter-spacing: var(--letter-tight);
+    }
+    .current-patient-name {
+        font-size: var(--font-lg);
+        font-weight: var(--font-extrabold);
+        margin-top: var(--space-1);
+        line-height: var(--line-snug);
+    }
+    .current-patient-nik {
+        font-size: var(--font-xs);
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--color-text-tertiary);
+        margin-top: var(--space-1);
+        line-height: var(--line-snug);
+    }
+    .current-patient-actions {
+        display: none;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+    .current-patient-actions.show {
+        display: flex;
+    }
+    .btn-action {
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-accent);
+        border-radius: 8px;
+        background: var(--color-accent);
+        color: white;
+        font-family: inherit;
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 2px 8px rgba(99,102,241, 0.3);
+        line-height: var(--line-snug);
+    }
+    .btn-action:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99,102,241, 0.35);
+        background: #4f46e5;
+    }
+    .btn-action.secondary {
+        background: var(--color-surface);
+        color: var(--color-text-primary);
+        border-color: var(--color-text-tertiary);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: var(--space-4);
+        align-items: start;
+        width: 100%;
+        max-width: 100%;
+    }
+    .queue-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 12px;
+        padding: var(--space-3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .queue-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .queue-table th {
+        text-align: left;
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-wider);
+        padding-bottom: var(--space-2);
+        border-bottom: 1px solid #e5e7eb;
+        line-height: var(--line-snug);
+    }
+    .queue-table td {
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: var(--font-sm);
+        font-weight: var(--font-semibold);
+        line-height: var(--line-snug);
+    }
+    .queue-row-clickable {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .queue-row-clickable:hover {
+        background: rgba(99,102,241, 0.05);
+    }
+    .queue-number {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: var(--font-extrabold);
+        color: var(--color-accent);
+        font-size: var(--font-base);
+        line-height: var(--line-snug);
+    }
+    .queue-patient-name {
+        font-weight: var(--font-extrabold);
+    }
+    .queue-patient-nik {
+        font-size: var(--font-xs);
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+        line-height: var(--line-snug);
+    }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--space-1) var(--space-2);
+        border-radius: 6px;
+        font-size: var(--font-xs);
+        font-weight: var(--font-extrabold);
+        border: 1px solid var(--color-text-tertiary);
+        line-height: var(--line-snug);
+    }
+    .badge.normal {
+        background: #f3f4f6;
+    }
+    .badge.priority {
+        background: #dbeafe;
+        border-color: #3b82f6;
+        color: #1e40af;
+    }
+    .badge.emergency {
+        background: #fee2e2;
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+    .info-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 12px;
+        padding: var(--space-3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: var(--space-3);
+    }
+    .info-card:last-child {
+        margin-bottom: 0;
+    }
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-1) 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .info-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .info-label {
+        font-size: var(--font-xs);
+        font-weight: var(--font-bold);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-snug);
+    }
+    .info-value {
+        font-size: var(--font-sm);
+        font-weight: var(--font-extrabold);
+        line-height: var(--line-snug);
+    }
+    .status-indicator {
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        font-family: 'JetBrains Mono', monospace;
+        line-height: var(--line-snug);
+    }
+    .status-indicator.connected {
+        color: var(--color-accent);
+    }
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    .modal-overlay.open {
+        display: flex;
+    }
+    .modal-content {
+        background: var(--color-surface);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 12px;
+        padding: var(--space-4);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        max-width: 900px;
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .modal-title {
+        font-size: var(--font-lg);
+        font-weight: var(--font-extrabold);
+        margin-bottom: var(--space-3);
+        line-height: var(--line-snug);
+    }
+    .modal-grid {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        gap: var(--space-4);
+    }
+    .form-group {
+        margin-bottom: var(--space-3);
+    }
+    .form-group label {
+        display: block;
+        font-size: var(--font-xs);
+        font-weight: var(--font-bold);
+        color: var(--color-text-secondary);
+        margin-bottom: var(--space-1);
+        letter-spacing: var(--letter-wide);
+        line-height: var(--line-snug);
+    }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: var(--font-sm);
+        font-weight: var(--font-semibold);
+        background: var(--color-surface);
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        line-height: var(--line-snug);
+    }
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: var(--font-xs);
+    }
+    .modal-actions {
+        display: flex;
+        gap: var(--space-2);
+        margin-top: var(--space-4);
+    }
+    .btn-modal {
+        flex: 1;
+        padding: var(--space-2);
+        border: 1px solid var(--color-text-tertiary);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: var(--font-sm);
+        font-weight: var(--font-extrabold);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        line-height: var(--line-snug);
+    }
+    .btn-modal.cancel {
+        background: var(--color-surface);
+    }
+    .btn-modal.save {
+        background: var(--color-accent);
+        color: white;
+        border-color: var(--color-accent);
+    }
+    .btn-modal:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .history-section {
+        border-left: 1px solid #e5e7eb;
+        padding-left: var(--space-4);
+        display: flex;
+        flex-direction: column;
+    }
+    .history-list {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 400px;
+    }
+    .history-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: var(--space-3);
+        margin-bottom: var(--space-2);
+    }
+    .history-item:last-child {
+        margin-bottom: 0;
+    }
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        font-weight: var(--font-extrabold);
+        color: var(--color-accent);
+        font-size: var(--font-xs);
+        letter-spacing: 0.5px;
+        margin-bottom: var(--space-1);
+        line-height: var(--line-snug);
+    }
+    .history-detail {
+        font-size: var(--font-sm);
+        line-height: var(--line-relaxed);
+        margin-bottom: var(--space-1);
+    }
+    .history-prescription {
+        margin-top: var(--space-1);
+        padding-top: var(--space-1);
+        border-top: 1px dashed #e5e7eb;
+        color: #3b82f6;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: var(--font-xs);
+        white-space: pre-wrap;
+        line-height: var(--line-relaxed);
+    }
+    @media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+        .modal-grid {
+            grid-template-columns: 1fr;
+        }
+        .history-section {
+            border-left: none;
+            padding-left: 0;
+            border-top: 1px solid #e5e7eb;
+            padding-top: var(--space-4);
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="main-content">
+    <!-- Header -->
+    <div class="header-row">
+        <div>
+            <div class="section-title" style="color: #34d399;">Ruang Kerja Dokter</div>
+            <h1 class="page-title">{{ poli.nama }}</h1>
+        </div>
+        <div class="header-right">
+            <div class="clock-display" id="live-clock">00:00:00</div>
+            <a href="{% url 'queue_app:dokter_select' %}" class="btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 3h5v5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 21H3v-5"/></svg>
+                Ganti Poli
+            </a>
+        </div>
+    </div>
+
+    <!-- Current Patient Hero -->
+    <div class="current-patient-card" id="current-hero">
+        <div class="current-patient-header">
+            <div class="current-patient-info">
+                <div class="current-patient-label" id="current-label">PASIEN SEDANG DIPERIKSA</div>
+                <div class="current-patient-number" id="current-number" style="color: var(--color-text-tertiary);">BELUM ADA</div>
+                <div class="current-patient-name" id="current-name">Silakan pilih pasien dari daftar antrean</div>
+                <div class="current-patient-nik">NIK: <span id="current-nik">—</span></div>
+            </div>
+            <div class="current-patient-actions" id="current-actions">
+                <button class="btn-action" onclick="openMedicalModal()" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                    Periksa & Resep
+                </button>
+                <button id="btn-panggil-ulang" class="btn-action secondary" onclick="reCallCurrentPatient()" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-megaphone"><path d="m3 11 18-5v12L3 13v-2Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                    Panggil Ulang
+                </button>
+                <button class="btn-action" onclick="skipCurrentPatient()" style="background-color: #fee2e2; color: #ef4444; border-color: #ef4444; box-shadow: 0 2px 8px rgba(239,68,68,0.25); display: inline-flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skip-forward"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+                    Lewati Pasien
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="content-grid">
+        <!-- Left: Queue Table -->
+        <div class="queue-card">
+            <div class="section-title" id="queue-title-label" style="display: flex; align-items: center; gap: 6px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                Antrean Menunggu
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Nomor</th>
+                            <th>Pasien</th>
+                            <th>Kategori</th>
+                        </tr>
+                    </thead>
+                    <tbody id="workspace-queue-body">
+                        <tr>
+                            <td colspan="3" style="text-align: center; padding: var(--space-6); color: var(--color-text-muted); font-family: 'JetBrains Mono', monospace;">
+                                Memuat data antrean...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right: Info & Status -->
+        <div>
+            <div class="info-card">
+                <div class="section-title">Informasi Poliklinik</div>
+                <div class="info-row">
+                    <span class="info-label">Poliklinik</span>
+                    <span class="info-value">{{ poli.nama }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Prefix Kode</span>
+                    <span class="info-value" style="font-family: 'JetBrains Mono', monospace; color: #34d399;">{{ poli.prefix }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Estimasi Periksa</span>
+                    <span class="info-value">{{ poli.durasi_rata_rata }} Menit</span>
+                </div>
+            </div>
+            <div class="info-card">
+                <div class="section-title">Koneksi Server</div>
+                <div class="status-indicator" id="ws-status">● Menyambungkan...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Medical Record Modal -->
+<div class="modal-overlay" id="medModal">
+    <div class="modal-content">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+            Input Rekam Medis & Resep
+        </div>
+        <div class="modal-grid">
+            <div>
+                <div class="form-group">
+                    <label for="templateSelect">Template Resep Instan</label>
+                    <select id="templateSelect" onchange="applyTemplate(this.value)">
+                        <option value="">— Pilih Template —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="diagnosa">Diagnosa Penyakit *</label>
+                    <input type="text" id="diagnosa" placeholder="Misal: Hipertensi, ISPA" required>
+                </div>
+                <div class="form-group">
+                    <label for="tindakan">Tindakan Medis *</label>
+                    <input type="text" id="tindakan" placeholder="Misal: Pemberian obat, edukasi" required>
+                </div>
+                <div class="form-group">
+                    <label for="resep_obat">Resep Obat (E-Resep) *</label>
+                    <textarea id="resep_obat" placeholder="Nama Obat [Tab/Sirup] — Dosis (cth: 3x1 setelah makan)&#10;Tulis satu resep obat per baris" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="catatan">Catatan / Rujukan (Opsional)</label>
+                    <textarea id="catatan" placeholder="Misal: Kontrol 1 minggu lagi, banyak istirahat"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal cancel" onclick="closeMedModal()">Batal</button>
+                    <button type="button" class="btn-modal save" onclick="submitMedical()">Simpan & Selesai</button>
+                </div>
+            </div>
+            <div class="history-section">
+                <div class="section-title" style="display: flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-history"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                    Riwayat Medis Pasien
+                </div>
+                <div class="history-list" id="patient-history">
+                    <p style="color: var(--color-text-muted); font-size: var(--font-xs); font-family: 'JetBrains Mono', monospace;">
+                        Tidak ada riwayat medis sebelumnya.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    const poliKode = "{{ poli.kode }}";
+    let currentPatient = null;
+    let templatesList = [];
+
+    setInterval(() => {
+        const el = document.getElementById('live-clock');
+        if (el) el.innerText = new Date().toLocaleTimeString('id-ID');
+    }, 1000);
+
+    window.addEventListener('DOMContentLoaded', () => {
+        loadData();
+        loadTemplates();
+        connectWebSocket(poliKode, data => {
+            if (['update_queue', 'call_patient', 'complete_exam'].includes(data.action)) {
+                loadData();
+                if (data.action === 'update_queue' && data.msg) {
+                    showToast(data.msg, 'info');
+                }
+            }
+            // recall_patient: suara hanya dari tombol dokter (hindari dobel TTS di ruang dokter)
+        });
+        setTimeout(() => {
+            const el = document.getElementById('ws-status');
+            if (el) {
+                el.innerText = '● Terhubung Live';
+                el.classList.add('connected');
+            }
+        }, 1500);
+    });
+
+    async function loadData() {
+        try {
+            const data = await (await fetch(`/api/antrian/${poliKode}/`)).json();
+            const called = data.find(p => p.status === 'called');
+            const waiting = data.filter(p => p.status === 'waiting');
+
+            const hero = document.getElementById('current-hero');
+            const labelEl = document.getElementById('queue-title-label');
+            const actionsEl = document.getElementById('current-actions');
+
+            if (called) {
+                currentPatient = called;
+                document.getElementById('current-label').innerText = 'PASIEN SEDANG DIPERIKSA';
+                document.getElementById('current-number').innerText = called.nomor_antrian;
+                document.getElementById('current-number').style.color = '#34d399';
+                document.getElementById('current-name').innerText = called.nama_pasien;
+                document.getElementById('current-nik').innerText = called.nik_pasien;
+                actionsEl.classList.add('show');
+                hero.classList.add('active');
+                if (labelEl) labelEl.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard" style="vertical-align: middle; margin-right: 6px;"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                    Antrean Menunggu (Selesaikan pemeriksaan aktif dahulu)
+                `;
+            } else {
+                currentPatient = null;
+                document.getElementById('current-label').innerText = 'PASIEN SEDANG DIPERIKSA';
+                document.getElementById('current-number').innerText = 'BELUM ADA';
+                document.getElementById('current-number').style.color = 'var(--color-text-tertiary)';
+                document.getElementById('current-name').innerText = 'Pilih pasien dari daftar antrean';
+                document.getElementById('current-nik').innerText = '—';
+                actionsEl.classList.remove('show');
+                hero.classList.remove('active');
+                if (labelEl) labelEl.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard" style="vertical-align: middle; margin-right: 6px;"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                    Antrean Menunggu (Klik baris pasien untuk memanggil)
+                `;
+            }
+
+            const tbody = document.getElementById('workspace-queue-body');
+            tbody.innerHTML = '';
+            if (waiting.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: var(--space-6); color: var(--color-text-muted); font-family: 'JetBrains Mono', monospace;">
+                            — TIDAK ADA PASIEN MENUNGGU —
+                        </td>
+                    </tr>
+                `;
+            } else {
+                const mapClasses = { '0': 'normal', '1': 'priority', '2': 'emergency'};
+                waiting.forEach(p => {
+                    const row = document.createElement('tr');
+                    if (!called) {
+                        row.classList.add('queue-row-clickable');
+                        row.onclick = () => callPatient(p.id, p.nomor_antrian, p.nama_pasien);
+                    }
+                    row.innerHTML = `
+                        <td>
+                            <div class="queue-number">${p.nomor_antrian}</div>
+                        </td>
+                        <td>
+                            <div class="queue-patient-name">${p.nama_pasien}</div>
+                            <div class="queue-patient-nik">NIK: ${p.nik_pasien}</div>
+                        </td>
+                        <td>
+                            <span class="badge ${mapClasses[p.prioritas_val]}">${p.prioritas_display}</span>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        } catch (e) {}
+    }
+
+    async function loadTemplates() {
+        try {
+            templatesList = await (await fetch('/api/templates-resep/')).json();
+            const sel = document.getElementById('templateSelect');
+            sel.innerHTML = '<option value="">— Pilih Template —</option>';
+            templatesList.forEach(t => {
+                const o = document.createElement('option');
+                o.value = t.id;
+                o.innerText = t.nama_template;
+                sel.appendChild(o);
+            });
+        } catch (e) {}
+    }
+
+    let speechFallbackTimeoutId = null;
+
+    function updateRecallButtonState(disabled) {
+        const btnRecall = document.getElementById('btn-panggil-ulang');
+        if (btnRecall) {
+            btnRecall.disabled = disabled;
+            if (disabled) {
+                btnRecall.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    Sedang Memanggil...
+                `;
+                btnRecall.style.opacity = '0.6';
+                btnRecall.style.cursor = 'not-allowed';
+            } else {
+                btnRecall.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-megaphone" style="vertical-align: middle; margin-right: 4px;"><path d="m3 11 18-5v12L3 13v-2Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                    Panggil Ulang
+                `;
+                btnRecall.style.opacity = '';
+                btnRecall.style.cursor = '';
+            }
+        }
+    }
+
+    function speakAnnouncement(nomorAntrian, namaPasien, namaPoliParam, antrianId, isRecall = false) {
+        updateRecallButtonState(true);
+        if (speechFallbackTimeoutId) clearTimeout(speechFallbackTimeoutId);
+        speechFallbackTimeoutId = setTimeout(() => updateRecallButtonState(false), 10000);
+
+        const text = `Nomor antrean ${nomorAntrian}, atas nama ${namaPasien}, silakan menuju ke ${namaPoliParam}`;
+        const key = antrianId
+            ? (isRecall ? `doctor-recall-${antrianId}` : `doctor-call-${antrianId}`)
+            : `doctor-call-${nomorAntrian}`;
+
+        KlinikAquaAudio.speak(text, {
+            key,
+            force: true,
+            alarm: true,
+            delayMs: isRecall ? 1800 : 300,
+            onEnd: () => {
+                if (speechFallbackTimeoutId) clearTimeout(speechFallbackTimeoutId);
+                updateRecallButtonState(false);
+            },
+        });
+    }
+
+    async function callPatient(id, nomorAntrian = null, namaPasien = null) {
+        if (currentPatient && currentPatient.id !== id) {
+            showToast('Selesaikan pemeriksaan pasien aktif dahulu!', 'warning');
+            return;
+        }
+        const nomor = nomorAntrian || (currentPatient && currentPatient.nomor_antrian);
+        const nama = namaPasien || (currentPatient && currentPatient.nama_pasien);
+        const res = await apiPost('/api/panggil/', { antrian_id: id });
+        if (res.success) {
+            showToast(res.msg, 'success');
+            loadData();
+            if (nomor && nama) {
+                speakAnnouncement(nomor, nama, '{{ poli.nama }}', id, false);
+            }
+        } else {
+            showToast(res.msg, 'error');
+        }
+    }
+
+    async function reCallCurrentPatient() {
+        const btnRecall = document.getElementById('btn-panggil-ulang');
+        if (btnRecall && btnRecall.disabled) return;
+        if (!currentPatient) return;
+
+        const { id, nomor_antrian, nama_pasien } = currentPatient;
+
+        // Suara di ruang dokter — tidak lewat API panggil (cegah dobel dengan event call_patient)
+        speakAnnouncement(nomor_antrian, nama_pasien, '{{ poli.nama }}', id, true);
+
+        try {
+            const res = await apiPost('/api/panggil-ulang/', { antrian_id: id });
+            if (res.success) {
+                showToast(res.msg, 'success');
+            } else {
+                showToast(res.msg, 'error');
+            }
+        } catch (e) {
+            showToast('Gagal mengirim panggilan ulang ke perangkat pasien.', 'error');
+        }
+    }
+
+    async function skipCurrentPatient() {
+        if (!currentPatient) return;
+        if (!confirm(`Apakah Anda yakin ingin melewati pasien ${currentPatient.nomor_antrian} (${currentPatient.nama_pasien})?`)) return;
+        const res = await apiPost('/api/lewati/', { antrian_id: currentPatient.id });
+        if (res.success) {
+            showToast(res.msg, 'success');
+            loadData();
+        } else {
+            showToast(res.msg, 'error');
+        }
+    }
+
+    function openMedicalModal() {
+        if (!currentPatient) return;
+        ['templateSelect', 'diagnosa', 'tindakan', 'resep_obat', 'catatan'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.getElementById('medModal').classList.add('open');
+        loadHistory(currentPatient.nik_pasien);
+    }
+
+    function closeMedModal() {
+        document.getElementById('medModal').classList.remove('open');
+    }
+
+    async function loadHistory(nik) {
+        const container = document.getElementById('patient-history');
+        container.innerHTML = '<p style="color: var(--color-text-muted); font-size: var(--font-xs); font-family: JetBrains Mono, monospace;">Memuat riwayat...</p>';
+        try {
+            const history = await (await fetch(`/api/riwayat/${nik}/`)).json();
+            if (history.length === 0) {
+                container.innerHTML = '<p style="color: var(--color-text-muted); font-size: var(--font-xs); text-align: center; padding-top: var(--space-4); font-family: JetBrains Mono, monospace;">Pasien baru. Belum ada riwayat medis.</p>';
+            } else {
+                container.innerHTML = '';
+                history.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'history-item';
+                    card.innerHTML = `
+                        <div class="history-header">
+                            <span>${item.tanggal}</span>
+                            <span>${item.poli}</span>
+                        </div>
+                        <div class="history-detail">Dx: <strong>${item.diagnosa}</strong></div>
+                        <div class="history-detail">Tindakan: <strong>${item.tindakan}</strong></div>
+                        <div class="history-prescription">${item.resep_obat}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        } catch (e) {
+            container.innerHTML = '<p style="color: #ef4444; font-size: var(--font-xs); font-family: JetBrains Mono, monospace;">Gagal memuat riwayat.</p>';
+        }
+    }
+
+    function applyTemplate(id) {
+        if (!id) return;
+        const t = templatesList.find(t => t.id == id);
+        if (t) {
+            document.getElementById('diagnosa').value = t.diagnosa_default;
+            document.getElementById('tindakan').value = t.tindakan_default;
+            document.getElementById('resep_obat').value = t.resep_default;
+            showToast(`Template "${t.nama_template}" diterapkan.`, 'success');
+        }
+    }
+
+    async function submitMedical() {
+        if (!currentPatient) return;
+        const diagnosa = document.getElementById('diagnosa').value.trim();
+        const tindakan = document.getElementById('tindakan').value.trim();
+        const resep_obat = document.getElementById('resep_obat').value.trim();
+        const catatan = document.getElementById('catatan').value.trim();
+        if (!diagnosa || !tindakan || !resep_obat) {
+            showToast('Harap isi diagnosa, tindakan, dan resep obat.', 'warning');
+            return;
+        }
+        const res = await apiPost('/api/selesai/', {
+            antrian_id: currentPatient.id,
+            diagnosa,
+            tindakan,
+            resep_obat,
+            catatan
+        });
+        if (res.success) {
+            showToast(res.msg, 'success');
+            closeMedModal();
+            loadData();
+        } else {
+            showToast(res.msg, 'error');
+        }
+    }
+</script>
+{% endblock %}

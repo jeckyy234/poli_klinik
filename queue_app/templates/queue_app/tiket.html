@@ -1,0 +1,598 @@
+{% extends 'queue_app/base.html' %}
+{% block title %}Tiket {{ antrian.nomor_antrian }} — Klinik Aqua{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ticket-hero {
+        background: var(--color-text-primary);
+        border: none;
+        border-radius: 14px;
+        padding: var(--space-10) var(--space-5);
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(17,24,39,0.2);
+    }
+    .ticket-number-large {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: var(--font-4xl);
+        font-weight: var(--font-extrabold);
+        color: #34d399;
+        line-height: var(--line-tight);
+        letter-spacing: var(--letter-tight);
+        margin: var(--space-4) 0;
+    }
+    .info-card {
+        background: var(--color-surface);
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: var(--space-5);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .med-num {
+        font-size: var(--font-2xl);
+        font-weight: var(--font-extrabold);
+        font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes blink-called {
+        0%, 100% { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.3); }
+        50% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0.12); }
+    }
+    .called-state { animation: blink-called 1s infinite; }
+    .wake-up-box {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 14px;
+        padding: var(--space-6);
+        text-align: center;
+        box-shadow: 0 4px 16px rgba(245,158,11,0.15);
+    }
+    .done-section {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: var(--space-6);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    .ticket-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-4);
+        width: 100%;
+        max-width: 100%;
+    }
+    .ticket-grid-full {
+        grid-column: 1 / -1;
+    }
+    @media (max-width: 1024px) {
+        .ticket-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .btn-reset {
+        width: 100%;
+        padding: var(--space-3);
+        background: #fee2e2;
+        color: #ef4444;
+        border: 1px solid #fca5a5;
+        border-radius: 10px;
+        font-size: var(--font-sm);
+        font-weight: var(--font-bold);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(239,68,68,0.18);
+        line-height: var(--line-snug);
+    }
+    .btn-reset:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239,68,68,0.25);
+        background: #fecaca;
+    }
+    .btn-reset:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(239,68,68,0.18);
+    }
+    .printable-receipt {
+        border: 2px dashed var(--color-text-primary);
+        border-radius: 12px;
+        padding: var(--space-4);
+        background: #faf9f6;
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--color-text-primary);
+    }
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        #done-section, #done-section * {
+            visibility: visible;
+        }
+        #done-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            background: white !important;
+            display: block !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .printable-receipt {
+            border: none !important;
+            background: white !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+        .btn-primary, button, .section-title {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content" style="max-width: 650px; margin: 0 auto;">
+    <div class="ticket-grid">
+        <div class="ticket-grid-full">
+            <div class="ticket-hero" id="ticket-hero">
+                <div style="color: var(--color-text-muted); font-size: var(--font-xs); font-weight: var(--font-bold); text-transform: uppercase; letter-spacing: var(--letter-widest);">NOMOR ANTREAN ANDA</div>
+                <div class="ticket-number-large" id="ticket-number">{{ antrian.nomor_antrian }}</div>
+                <div style="display: flex; justify-content: center;">
+                    <span class="badge" id="badge-status" style="background: white;">Menghubungkan...</span>
+                </div>
+            </div>
+            
+            <!-- User Gesture Audio Activator Banner -->
+            <div id="audio-activator-container" style="display: block; margin-top: var(--space-3);">
+                <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); box-shadow: 0 2px 8px rgba(99,102,241,0.1);">
+                    <div style="display: flex; align-items: center; gap: var(--space-3);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-volume-2" style="color: var(--color-accent); flex-shrink: 0;"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                        <div style="text-align: left;">
+                            <div style="font-size: var(--font-xs); font-weight: var(--font-extrabold); color: var(--color-accent); text-transform: uppercase; letter-spacing: var(--letter-wider);">Asisten Suara Panggilan</div>
+                            <div style="font-size: 10px; color: var(--color-text-secondary); line-height: 1.2; margin-top: 1px;">Aktifkan untuk mengizinkan panggilan suara di perangkat Anda.</div>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="activateSpeech()" style="background: var(--color-accent); color: white; border-color: var(--color-accent); font-size: var(--font-xs); padding: var(--space-2) var(--space-3); box-shadow: none; font-weight: var(--font-bold); border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                        Aktifkan
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="section-title" style="margin-bottom: var(--space-4); color: #3b82f6;">BIODATA PASIEN</div>
+            <div style="font-size: var(--font-lg); font-weight: var(--font-extrabold); margin-bottom: var(--space-1);" id="patient-name">{{ antrian.pasien.nama }}</div>
+            <div style="font-size: var(--font-xs); font-family: 'JetBrains Mono', monospace; color: var(--color-text-tertiary);" id="patient-nik">{{ antrian.pasien.nik }}</div>
+            
+            <div style="border-top: 1.5px solid #e5e7eb; margin: var(--space-4) 0;"></div>
+            
+            <div class="section-title" style="margin-bottom: var(--space-4); color: #3b82f6;">POLIKLINIK</div>
+            <div style="font-weight: var(--font-extrabold); font-size: var(--font-base);" id="poli-nama">{{ antrian.poli.nama }}</div>
+            <div style="font-size: var(--font-xs); color: var(--color-text-tertiary); margin-top: var(--space-1);" id="prioritas-label">{{ antrian.get_prioritas_display }}</div>
+        </div>
+
+        <div class="info-card" id="estimator-card">
+            <div class="section-title" style="margin-bottom: var(--space-4); color: #f59e0b;">ANTREAN DI DEPAN</div>
+            <div class="med-num" style="color: #f59e0b;" id="count-ahead">—</div>
+            <div style="font-size: var(--font-sm); color: var(--color-text-tertiary); margin-top: var(--space-1);">pasien lagi</div>
+            
+            <div style="border-top: 1.5px solid #e5e7eb; margin: var(--space-4) 0;"></div>
+            
+            <div class="section-title" style="margin-bottom: var(--space-4); color: #f59e0b;">ESTIMASI WAKTU</div>
+            <div class="med-num" style="color: #f59e0b;" id="time-estimator">—</div>
+            <div style="font-size: var(--font-sm); color: var(--color-text-tertiary); margin-top: var(--space-1);">menit</div>
+        </div>
+
+        <div class="ticket-grid-full">
+            <div class="wake-up-box" id="wake-up-box" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle" style="display: block; margin: 0 auto var(--space-2);"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <div style="font-size: var(--font-xs); font-weight: var(--font-bold); text-transform: uppercase; letter-spacing: var(--letter-widest); color: #f59e0b; margin-bottom: var(--space-1);">GILIRAN ANDA SEGERA!</div>
+                <p style="font-size: var(--font-sm); color: var(--color-text-primary);">Harap bersiap di dekat ruang pemeriksaan poliklinik tujuan.</p>
+            </div>
+        </div>
+
+        <div class="ticket-grid-full">
+            <div class="done-section" id="done-section" style="display: none;">
+                <div class="printable-receipt" style="border: 2px dashed var(--color-text-primary); border-radius: 12px; padding: var(--space-5); background: #faf9f6; position: relative; margin-bottom: var(--space-3); font-family: 'JetBrains Mono', monospace; color: var(--color-text-primary);">
+                    <!-- Mini Receipt Header -->
+                    <div style="text-align: center; margin-bottom: var(--space-4); border-bottom: 2px dashed #94a3b8; padding-bottom: var(--space-3);">
+                        <div style="font-size: var(--font-base); font-weight: var(--font-extrabold); letter-spacing: var(--letter-normal); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <!-- SVG: Cross (medical) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2a1 1 0 0 1 2 0v4h4a1 1 0 0 1 0 2h-4v4a1 1 0 0 1-2 0v-4H7a1 1 0 0 1 0-2h4V2z"/><rect x="3" y="11" width="18" height="9" rx="2"/></svg>
+                            KLINIK AQUA
+                        </div>
+                        <div style="font-size: var(--font-xs); color: var(--color-text-secondary);">Jl. Pantai Indah No. 10, Jakarta</div>
+                        <div style="font-size: var(--font-xs); color: var(--color-text-secondary); margin-top: 2px;">Telp: (021) 555-0199</div>
+                    </div>
+                    
+                    <!-- Receipt Meta -->
+                    <div style="font-size: var(--font-xs); display: grid; grid-template-columns: auto auto; justify-content: space-between; margin-bottom: var(--space-4); gap: var(--space-2);">
+                        <div>No. Antrean: <strong id="receipt-queue-num">{{ antrian.nomor_antrian }}</strong></div>
+                        <div style="text-align: right;" id="receipt-date">—</div>
+                        <div>Nama Pasien: <strong id="receipt-patient-name">{{ antrian.pasien.nama }}</strong></div>
+                        <div style="text-align: right;" id="receipt-poli">{{ antrian.poli.nama }}</div>
+                    </div>
+                    
+                    <div style="border-bottom: 2px dashed #94a3b8; margin-bottom: var(--space-4);"></div>
+                    
+                    <!-- Content sections -->
+                    <div style="margin-bottom: var(--space-3);">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                            Diagnosa
+                        </div>
+                        <div id="diagnosa-val" style="font-size: var(--font-sm); font-weight: var(--font-semibold); line-height: var(--line-relaxed);">—</div>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-3);">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pill"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+                            Tindakan
+                        </div>
+                        <div id="tindakan-val" style="font-size: var(--font-sm); font-weight: var(--font-semibold); line-height: var(--line-relaxed);">—</div>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-4);">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                            Resep Obat Digital
+                        </div>
+                        <pre id="resep-val" style="font-family: inherit; font-size: var(--font-sm); background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-3); white-space: pre-wrap; margin: 0; font-weight: var(--font-semibold); line-height: var(--line-relaxed);">—</pre>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-4);" id="catatan-container" style="display: none;">
+                        <div style="font-size: var(--font-xs); font-weight: var(--font-bold); color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                            Catatan Dokter
+                        </div>
+                        <div id="catatan-val" style="font-size: var(--font-sm); font-style: italic;">—</div>
+                    </div>
+                    
+                    <div style="border-bottom: 2px dashed #94a3b8; margin-bottom: var(--space-4);"></div>
+
+                    <!-- Bottom verification section with QR Code -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-2);">
+                        <div>
+                            <div style="font-size: var(--font-xs); font-weight: var(--font-bold);">VERIFIKASI RESEP DIGITAL</div>
+                            <div style="font-size: 8px; color: var(--color-text-secondary); line-height: 1.2; margin-top: 2px; max-width: 210px;">Tap / klik QR untuk perbesar. Scan untuk validasi resep di Farmasi Klinik Aqua.</div>
+                        </div>
+                        <div id="receipt-qr-container" onclick="openQrModal()" title="Tap untuk perbesar QR" style="cursor: pointer; transition: transform 0.15s ease; flex-shrink: 0;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                            <div style="width: 80px; height: 80px; background: #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; color: var(--color-text-muted);">Memuat QR...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="printReceipt()" style="width: 100%; padding: var(--space-4); margin-bottom: var(--space-3); margin-top: var(--space-3); background-color: var(--color-accent); border-color: var(--color-accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: var(--space-2); transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(99,102,241,0.25);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 0 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    CETAK RESEP DIGITAL
+                </button>
+            </div>
+        </div>
+            </div>
+        </div>
+
+        <div class="ticket-grid-full" id="cancel-btn-container" style="display: none;">
+            <button class="btn-reset" id="cancel-btn" onclick="cancelQueue()" style="width: 100%; padding: var(--space-4); margin-bottom: var(--space-2); display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
+                <!-- SVG: X circle -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                BATALKAN ANTREAN
+            </button>
+        </div>
+
+        <!-- Skipped State Banner -->
+        <div class="ticket-grid-full" id="skipped-container" style="display: none;">
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: var(--space-4); box-shadow: 0 4px 12px rgba(239,68,68,0.1); margin-bottom: var(--space-3);">
+                <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);">
+                    <!-- SVG: Alert triangle -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    <div style="font-size: var(--font-sm); font-weight: var(--font-extrabold); color: #ef4444; text-transform: uppercase; letter-spacing: var(--letter-wider);">Anda Dilewati oleh Dokter</div>
+                </div>
+                <p style="font-size: var(--font-sm); color: var(--color-text-secondary); margin: 0; line-height: var(--line-relaxed);">Nomor antrean Anda telah dilewati karena Anda tidak hadir saat dipanggil. Silakan daftar kembali untuk mendapatkan nomor antrean baru.</p>
+            </div>
+            <!-- Tombol Masuk Antrean Kembali (tanpa ketik ulang) -->
+            <button id="requeue-btn" onclick="reQueuePatient()" style="width: 100%; padding: var(--space-4); background: var(--color-accent); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: var(--font-sm); font-weight: var(--font-bold); cursor: pointer; box-shadow: 0 4px 12px rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: center; gap: var(--space-2); transition: all 0.2s ease; margin-bottom: var(--space-2);">
+                <!-- SVG: Refresh -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                Masuk Antrean Kembali
+            </button>
+            <!-- Tombol Daftar Baru -->
+            <button onclick="clearTicket()" style="width: 100%; padding: var(--space-4); background: var(--color-text-secondary); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: var(--font-sm); font-weight: var(--font-bold); cursor: pointer; box-shadow: 0 2px 8px rgba(71,85,105,0.25); display: flex; align-items: center; justify-content: center; gap: var(--space-2); transition: all 0.2s ease;">
+                <!-- SVG: Plus circle -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Daftar Antrean Baru
+            </button>
+        </div>
+
+        <div class="ticket-grid-full">
+            <button class="btn-primary" onclick="clearTicket()" style="width: 100%; padding: var(--space-4); display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
+                <!-- SVG: Log out -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                SELESAI &amp; KEMBALI KE PENDAFTARAN
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- QR Zoom Modal -->
+<div id="qr-zoom-modal" onclick="closeQrModal()" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:16px; padding: 24px; transition: all 0.3s ease;">
+    <div onclick="event.stopPropagation()" style="background:white; border-radius:12px; padding:32px 32px 24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); text-align:center; max-width:340px; width:100%; border: 1px solid rgba(226,232,240,0.8);">
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:var(--color-text-secondary); margin-bottom:20px;">Verifikasi Resep Digital</div>
+        <div style="background:#f8fafc; padding:16px; border-radius:8px; display:inline-block; margin-bottom:16px; border:1px solid #f1f5f9;">
+            <img id="qr-zoom-img" src="" alt="QR Code" style="width:200px; height:200px; display:block; margin:0 auto; border-radius:6px;" />
+        </div>
+        <div style="font-size:12px; color:var(--color-text-secondary); margin-top:8px; line-height:1.5; font-weight:500;">Pindai QR ini di bagian Farmasi untuk memvalidasi resep obat Anda.</div>
+        <button onclick="closeQrModal()" style="margin-top:20px; width:100%; padding:12px 24px; background:#6366f1; color:white; border:none; border-radius:8px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:0.02em; transition:all 0.2s ease; box-shadow:0 4px 12px rgba(99,102,241,0.25);" onmouseover="this.style.background='#4f46e5'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#6366f1'; this.style.transform='none';">Tutup</button>
+    </div>
+    <div style="font-size:12px; color:rgba(255,255,255,0.6); font-weight:500;">Ketuk di mana saja untuk menutup</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const antrianId = "{{ antrian.id }}";
+    const poliKode = "{{ antrian.poli.kode }}";
+    let hasAlertedNear = false;
+    let hasAlertedCall = false;
+    let speechActivated = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        localStorage.setItem('klinik_aqua_antrian_id', antrianId);
+        
+        // Auto-unlock speech assistant if already approved in this browser session
+        if (localStorage.getItem('klinik_aqua_speech_unlocked') === 'true') {
+            speechActivated = true;
+            const activator = document.getElementById('audio-activator-container');
+            if (activator) activator.style.display = 'none';
+        }
+
+        fetchTicketData();
+        connectWebSocket(poliKode, data => {
+            if (data.action === 'recall_patient' && data.antrian_id === antrianId) {
+                showToast('Nomor Anda dipanggil ulang! Segera masuk.', 'warning');
+                document.getElementById('ticket-hero').classList.add('called-state');
+                KlinikAquaAudio.speak(
+                    `Nomor antrean Anda ${data.nomor_antrian} dipanggil ulang di ${data.poli_nama}. Silakan segera menuju ruangan.`,
+                    { key: `patient-recall-${data.antrian_id}`, force: true, alarm: true, delayMs: 1800 }
+                );
+                return;
+            }
+            if (['update_queue', 'call_patient', 'complete_exam'].includes(data.action)) {
+                fetchTicketData();
+            }
+        });
+    });
+
+    function activateSpeech() {
+        speechActivated = true;
+        localStorage.setItem('klinik_aqua_speech_unlocked', 'true');
+        const activator = document.getElementById('audio-activator-container');
+        if (activator) activator.style.display = 'none';
+        
+        // Trigger alert welcome beep
+        triggerAlarm(1);
+        showToast('Asisten suara berhasil diaktifkan!', 'success');
+        
+        // Welcoming speech to satisfy autoplay user gesture requirement
+        speakNotification('Asisten suara panggilan aktif. Anda akan diberitahu ketika nomor antrean Anda dipanggil.', 300);
+    }
+
+    function printReceipt() {
+        window.print();
+    }
+
+    async function reQueuePatient() {
+        const btn = document.getElementById('requeue-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                Mendaftarkan kembali...
+            `;
+        }
+        try {
+            const res = await apiPost(`/api/daftar-kembali/${antrianId}/`, {});
+            if (res.success) {
+                showToast(res.msg, 'success');
+                hasAlertedNear = false;
+                hasAlertedCall = false;
+                document.getElementById('skipped-container').style.display = 'none';
+                document.getElementById('estimator-card').style.display = 'block';
+                document.getElementById('cancel-btn-container').style.display = 'block';
+                // Aktifkan kembali audio activator jika belum di-unlock
+                if (!speechActivated) {
+                    const activator = document.getElementById('audio-activator-container');
+                    if (activator) activator.style.display = 'block';
+                }
+                fetchTicketData();
+            } else {
+                showToast(res.msg, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Masuk Antrean Kembali'; }
+            }
+        } catch (err) {
+            showToast('Koneksi server terganggu.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Masuk Antrean Kembali'; }
+        }
+    }
+
+    async function cancelQueue() {
+        if (!confirm('Apakah Anda yakin ingin membatalkan antrean Anda?')) return;
+        try {
+            const res = await apiPost(`/api/batal-antrian/${antrianId}/`, {});
+            if (res.success) {
+                showToast(res.msg, 'success');
+                localStorage.removeItem('klinik_aqua_antrian_id');
+                localStorage.removeItem('klinik_aqua_nik');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            } else {
+                showToast(res.msg, 'error');
+            }
+        } catch (err) {
+            showToast('Koneksi server terganggu.', 'error');
+        }
+    }
+
+    async function fetchTicketData() {
+        try {
+            const res = await fetch(`/api/tiket/${antrianId}/`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    showToast('Tiket tidak ditemukan. Mungkin sudah dihapus dari sistem.', 'warning');
+                    localStorage.removeItem('klinik_aqua_antrian_id');
+                    setTimeout(() => { window.location.href = '/'; }, 1500);
+                }
+                return;
+            }
+            const d = await res.json();
+
+            document.getElementById('ticket-number').innerText = d.nomor_antrian;
+            document.getElementById('patient-name').innerText = d.nama_pasien;
+            document.getElementById('patient-nik').innerText = d.nik_pasien;
+            document.getElementById('poli-nama').innerText = d.poli_nama;
+            document.getElementById('prioritas-label').innerText = d.prioritas;
+
+            updateBadge(d.status);
+
+            const cancelBtnContainer = document.getElementById('cancel-btn-container');
+
+            if (d.status === 'waiting' || d.status === 'called') {
+                document.getElementById('done-section').style.display = 'none';
+                document.getElementById('estimator-card').style.display = 'block';
+                document.getElementById('skipped-container').style.display = 'none';
+                document.getElementById('count-ahead').innerText = d.jumlah_di_depan;
+                document.getElementById('time-estimator').innerText = d.estimasi_waktu;
+                
+                if (d.status === 'waiting') {
+                    cancelBtnContainer.style.display = 'block';
+                } else {
+                    cancelBtnContainer.style.display = 'none';
+                }
+
+                if (d.status === 'waiting' && d.jumlah_di_depan <= 2) {
+                    document.getElementById('wake-up-box').style.display = 'block';
+                    if (!hasAlertedNear) { 
+                        hasAlertedNear = true; 
+                        showToast('Giliran Anda segera! Harap mendekati ruangan.', 'warning'); 
+                        KlinikAquaAudio.speak(
+                            `Harap bersiap, antrean Anda nomor ${d.nomor_antrian} di ${d.poli_nama} segera dipanggil.`,
+                            { key: `near-${antrianId}`, alarm: true, delayMs: 1800 }
+                        );
+                    }
+                } else {
+                    document.getElementById('wake-up-box').style.display = 'none';
+                }
+
+                if (d.status === 'called' && !hasAlertedCall) {
+                    hasAlertedCall = true;
+                    showToast('Nomor Anda dipanggil! Segera masuk.', 'success');
+                    document.getElementById('ticket-hero').classList.add('called-state');
+                    KlinikAquaAudio.speak(
+                        `Nomor antrean Anda ${d.nomor_antrian} sedang dipanggil di ${d.poli_nama}.`,
+                        { key: `called-${antrianId}`, alarm: true, delayMs: 1800 }
+                    );
+                }
+            } else if (d.status === 'skipped') {
+                cancelBtnContainer.style.display = 'none';
+                document.getElementById('estimator-card').style.display = 'none';
+                document.getElementById('wake-up-box').style.display = 'none';
+                document.getElementById('done-section').style.display = 'none';
+                document.getElementById('skipped-container').style.display = 'block';
+                document.getElementById('ticket-hero').classList.remove('called-state');
+                // Hide audio activator if skipped
+                const activator = document.getElementById('audio-activator-container');
+                if (activator) activator.style.display = 'none';
+            } else if (d.status === 'done') {
+                cancelBtnContainer.style.display = 'none';
+                document.getElementById('estimator-card').style.display = 'none';
+                document.getElementById('wake-up-box').style.display = 'none';
+                document.getElementById('done-section').style.display = 'block';
+                
+                // Hide audio activator if completed
+                const activator = document.getElementById('audio-activator-container');
+                if (activator) activator.style.display = 'none';
+
+                // Generate real dynamic QR code pointing to the validation link
+                const qrContainer = document.getElementById('receipt-qr-container');
+                if (qrContainer) {
+                    const verificationUrl = window.location.origin + '/tiket/' + antrianId + '/';
+                    currentQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=1e293b&bgcolor=ffffff&data=${encodeURIComponent(verificationUrl)}`;
+                    const thumbUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&color=1e293b&data=${encodeURIComponent(verificationUrl)}`;
+                    qrContainer.innerHTML = `
+                        <img src="${thumbUrl}" 
+                             alt="QR Code Resep — Tap untuk perbesar" 
+                             width="80" height="80" 
+                             style="background: white; padding: 6px; border: 1px solid #e2e8f0; border-radius: 8px; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.04); transition: transform 0.15s ease;" />
+                    `;
+                }
+
+                if (d.pemeriksaan) {
+                    // Populate receipt meta date
+                    document.getElementById('receipt-date').innerText = new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+                    
+                    document.getElementById('diagnosa-val').innerText = d.pemeriksaan.diagnosa || '—';
+                    document.getElementById('tindakan-val').innerText = d.pemeriksaan.tindakan || '—';
+                    document.getElementById('resep-val').innerText = d.pemeriksaan.resep_obat || '—';
+                    if (d.pemeriksaan.catatan) {
+                        document.getElementById('catatan-container').style.display = 'block';
+                        document.getElementById('catatan-val').innerText = d.pemeriksaan.catatan;
+                    } else {
+                        document.getElementById('catatan-container').style.display = 'none';
+                    }
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function updateBadge(status) {
+        const b = document.getElementById('badge-status');
+        b.className = 'badge';
+        if (status === 'waiting') {
+            b.style.background = '#dbeafe';
+            b.innerText = 'Menunggu';
+        } else if (status === 'called') {
+            b.style.background = '#d1fae5';
+            b.style.borderColor = '#34d399';
+            b.innerText = 'Giliran Anda';
+        } else if (status === 'done') {
+            b.style.background = '#d1fae5';
+            b.innerText = 'Selesai';
+        } else if (status === 'skipped') {
+            b.style.background = '#fee2e2';
+            b.style.borderColor = '#ef4444';
+            b.innerText = 'Dilewati';
+        } else {
+            b.innerText = status;
+        }
+    }
+
+    function clearTicket() {
+        if (confirm('Selesaikan sesi ini dan kembali ke halaman pendaftaran?')) {
+            localStorage.removeItem('klinik_aqua_antrian_id');
+            localStorage.removeItem('klinik_aqua_nik');
+            window.location.href = '/';
+        }
+    }
+
+    // QR Code Zoom Modal
+    let currentQrUrl = '';
+
+    function openQrModal() {
+        const existing = document.getElementById('qr-zoom-modal');
+        if (!existing || !currentQrUrl) return;
+        const imgEl = document.getElementById('qr-zoom-img');
+        if (imgEl) imgEl.src = currentQrUrl;
+        existing.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeQrModal() {
+        const modal = document.getElementById('qr-zoom-modal');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeQrModal(); });
+</script>
+{% endblock %}
